@@ -50,14 +50,20 @@ public class HoldService {
     }
 
     private HoldLine buildLine(Hold hold,HoldLineRequest lineRequest){
-        ResourcePool pool = poolRepository.findById(lineRequest.resourcePoolId())
+        PoolMode mode = poolRepository.findPoolModeById(lineRequest.resourcePoolId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "ResourcePool not found: " + lineRequest.resourcePoolId()));
 
-        if (pool.getPoolMode() == PoolMode.UNIT_BASED) {
+        if (mode == PoolMode.UNIT_BASED) {
+            ResourcePool pool = poolRepository.findById(lineRequest.resourcePoolId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "ResourcePool not found: " + lineRequest.resourcePoolId()));
             return buildUnitLine(hold, pool, lineRequest);
         }
-        return buildCounterLine(hold, pool, lineRequest);
+        ResourcePool lockedPool = poolRepository.findByIdForUpdate(lineRequest.resourcePoolId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "ResourcePool not found: " + lineRequest.resourcePoolId()));
+        return buildCounterLine(hold, lockedPool, lineRequest);
     }
 
     private HoldLine buildUnitLine(Hold hold, ResourcePool pool, HoldLineRequest lineRequest) {
@@ -74,6 +80,11 @@ public class HoldService {
         }
 
         unit.setStatus(com.reservengine.core.domain.ResourceUnitStatus.HELD);
+        //below step actually updates the database ,. Flushing here establishes a consistent
+        //        // "exclusive lock first, insert second" order across every
+        //        // transaction, without adding any explicit pessimistic locking —
+        //        // @Version is still what actually resolves genuine conflicts.
+        unitRepository.saveAndFlush(unit);
         return new HoldLine(hold, unit);
     }
     private HoldLine buildCounterLine(Hold hold, ResourcePool pool, HoldLineRequest lineRequest) {

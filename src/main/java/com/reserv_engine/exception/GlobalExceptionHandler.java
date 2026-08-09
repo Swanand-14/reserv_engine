@@ -1,6 +1,7 @@
 package com.reserv_engine.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -28,6 +29,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(IllegalArgumentException ex, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLockFailure(
+            OptimisticLockingFailureException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT,
+                "This resource was just modified by another request — please retry.", request);
     }
 
     private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, HttpServletRequest request) {
