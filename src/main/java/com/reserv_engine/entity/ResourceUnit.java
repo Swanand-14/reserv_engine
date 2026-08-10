@@ -1,5 +1,6 @@
 package com.reserv_engine.entity;
 
+import com.reserv_engine.core.domain.ResourceUnitStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -8,7 +9,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
-import com.reservengine.core.domain.ResourceUnitStatus;
+import com.reserv_engine.core.domain.ResourceUnitStatus;
 /**
  * [Engine] An individually tracked reservable unit, for pools where identity
  * (not just quantity) matters — e.g. one numbered seat's reservable slot for
@@ -43,7 +44,7 @@ public class ResourceUnit {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20, nullable = false)
-    private com.reservengine.core.domain.ResourceUnitStatus status;
+    private com.reserv_engine.core.domain.ResourceUnitStatus status;
 
     // Optimistic lock — the mechanism unit-based pools will use for hold creation.
     @Version
@@ -61,8 +62,8 @@ public class ResourceUnit {
 
     @PrePersist
     void onCreate() {
-        if (createdAt == null) {
-            createdAt = LocalDateTime.now();
-        }
+
     }
+
+
 }

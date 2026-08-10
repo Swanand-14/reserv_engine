@@ -1,7 +1,7 @@
 package com.reserv_engine.repository;
 
+import com.reserv_engine.core.domain.ResourceUnitStatus;
 import com.reserv_engine.entity.ResourceUnit;
-import com.reservengine.core.domain.ResourceUnitStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,21 +10,24 @@ import java.util.List;
 
 public interface ResourceUnitRepository extends JpaRepository<ResourceUnit, String> {
 
-    // Used by the browse endpoint to show remaining capacity for a UNIT_BASED pool.
     long countByResourcePool_IdAndStatus(String resourcePoolId, ResourceUnitStatus status);
 
     List<ResourceUnit> findByResourcePool_Id(String resourcePoolId);
 
-    // NOTE: when optimistic locking is introduced for UNIT_BASED pools
-    // (step 6 of the build plan), hold creation will load specific units by id,
-    // rely on @Version, and catch OptimisticLockException on save/flush.
-    // Not needed yet — this step is read-only browsing.
-
+    // Currently unused (browsePoolsForWindow was simplified to skip this),
+    // kept for when the batched-count optimization comes back. Status is
+    // now a bind parameter (:status) instead of a hardcoded fully-qualified
+    // enum literal in the JPQL string — that hardcoded form is exactly what
+    // just broke: it silently duplicates the package path as a string, with
+    // nothing to catch it if the path is ever wrong, unlike a real Java
+    // reference which the compiler checks.
     @Query("""
             SELECT ru.resourcePool.id AS poolId, COUNT(ru) AS availableCount
             FROM ResourceUnit ru
-            WHERE ru.resourcePool.id IN :poolIds AND ru.status = com.reserv_engine.ResourceUnitStatus.AVAILABLE
+            WHERE ru.resourcePool.id IN :poolIds AND ru.status = :status
             GROUP BY ru.resourcePool.id
             """)
-    List<PoolAvailableCount> countAvailableByPoolIds(@Param("poolIds") List<String> poolIds);
+    List<PoolAvailableCount> countAvailableByPoolIds(
+            @Param("poolIds") List<String> poolIds,
+            @Param("status") ResourceUnitStatus status);
 }

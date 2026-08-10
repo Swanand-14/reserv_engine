@@ -1,4 +1,4 @@
-package com.reservengine.core.domain;
+package com.reserv_engine.core.domain;
 
 /**
  * Lifecycle state of an individual ResourceUnit (unit-based pools only).
