@@ -1,6 +1,7 @@
 package com.reserv_engine.service;
 
 import com.reserv_engine.core.domain.HoldStatus;
+import com.reserv_engine.core.domain.PaymentAttemptStatus;
 import com.reserv_engine.core.domain.ResourceUnitStatus;
 import com.reserv_engine.dto.ConfirmReservationRequest;
 import com.reserv_engine.dto.ConfirmReservationRequest.LinePriceRequest;
@@ -14,6 +15,7 @@ import com.reserv_engine.entity.ResourceUnit;
 import com.reserv_engine.exception.ResourceConflictException;
 import com.reserv_engine.exception.ResourceNotFoundException;
 import com.reserv_engine.repository.HoldRepository;
+import com.reserv_engine.repository.PaymentAttemptRepository;
 import com.reserv_engine.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -52,6 +54,7 @@ public class ReservationService {
 
     private final HoldRepository holdRepository;
     private final ReservationRepository reservationRepository;
+    private final PaymentAttemptRepository paymentAttemptRepository;
 
     @Transactional
     public ReservationResponse confirm(ConfirmReservationRequest request) {
@@ -71,6 +74,12 @@ public class ReservationService {
         if (hold.isExpired()) {
             throw new ResourceConflictException("Hold has expired, cannot confirm: " + hold.getId());
         }
+
+        paymentAttemptRepository.findByHoldIdAndStatus(hold.getId(), PaymentAttemptStatus.SUCCESS)
+                .orElseThrow(() -> new ResourceConflictException(
+                        "No successful payment attempt found for Hold, cannot confirm: " + hold.getId()));
+
+
 
         Map<String, BigDecimal> pricesByHoldLineId = request.linePrices().stream()
                 .collect(Collectors.toMap(LinePriceRequest::holdLineId, LinePriceRequest::price));
