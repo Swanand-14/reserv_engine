@@ -26,5 +26,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
             WHERE r.holdId = :holdId
             """)
     Optional<Reservation> findByHoldIdWithLines(@Param("holdId") String holdId);
+    @Query("""
+            SELECT r FROM Reservation r
+            LEFT JOIN FETCH r.reservationLines rl
+            LEFT JOIN FETCH rl.resourcePool
+            LEFT JOIN FETCH rl.resourceUnit
+            WHERE r.id = :id
+            """)
+    Optional<Reservation> findByIdWithLines(@Param("id") String id);
 
 }
