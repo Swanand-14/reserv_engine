@@ -143,4 +143,5 @@ class CounterBasedHoldConcurrencyTest extends AbstractIntegrationTest {
                 "SELECT remaining_capacity FROM resource_pool WHERE id = ?", Integer.class, poolId);
         assertThat(remaining).as("final remaining_capacity").isZero();
     }
+
 }
