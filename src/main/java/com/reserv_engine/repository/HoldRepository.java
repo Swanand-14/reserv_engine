@@ -4,6 +4,7 @@ import com.reserv_engine.core.domain.HoldStatus;
 import com.reserv_engine.entity.Hold;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -40,5 +41,9 @@ public interface HoldRepository extends JpaRepository<Hold, String> {
             @Param("status") HoldStatus status,
             @Param("now") LocalDateTime now,
             Pageable pageable);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT h FROM Hold h WHERE h.id = :id")
+    Optional<Hold> findByIdForUpdate(@Param("id") String id);
 
 }

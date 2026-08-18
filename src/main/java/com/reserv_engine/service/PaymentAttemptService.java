@@ -42,13 +42,30 @@ public class PaymentAttemptService {
 
     @Transactional
     public PaymentAttemptResponse attemptPayment(CreatePaymentAttemptRequest request) {
+
+        // Lock the Hold FIRST, before any other read — this must be the
+        // transaction's very first DB statement. A locking read (FOR
+        // UPDATE) does NOT itself establish this transaction's REPEATABLE
+        // READ snapshot (only plain/consistent reads do, per InnoDB docs).
+        // So placing it first means it serializes concurrent callers via
+        // the row lock WITHOUT pinning a stale snapshot — the next plain
+        // read (the idempotency check, right below) becomes the actual
+        // "first consistent read" and establishes ITS snapshot only after
+        // this thread's wait on the lock ends, i.e. only after whichever
+        // transaction held the lock before it has already committed. That
+        // ordering is what makes the SUCCESS-check below actually see a
+        // just-committed winner instead of a stale pre-lock snapshot —
+        // which was the root cause of ConcurrentPaymentSuccessRaceTest
+        // finding up to 10 SUCCESS rows per Hold.
+
+        Hold hold = holdRepository.findByIdForUpdate(request.holdId())
+                .orElseThrow(() -> new ResourceNotFoundException("Hold not found: " + request.holdId()));
         var existing = paymentAttemptRepository.findByIdempotencyKey(request.idempotencyKey());
         if (existing.isPresent()) {
             return toResponse(existing.get());
         }
 
-        Hold hold = holdRepository.findById(request.holdId())
-                .orElseThrow(() -> new ResourceNotFoundException("Hold not found: " + request.holdId()));
+
 
         // Same re-check principle as HoldExpiryService / ReservationService:
         // don't trust anything the client believed about the Hold before
