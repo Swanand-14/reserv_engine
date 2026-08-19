@@ -1,120 +1,64 @@
 package com.reserv_engine.service;
 
-import com.reserv_engine.core.domain.HoldStatus;
-import com.reserv_engine.core.domain.PaymentAttemptStatus;
-import com.reserv_engine.core.domain.ResourceUnitStatus;
 import com.reserv_engine.dto.ConfirmReservationRequest;
-import com.reserv_engine.dto.ConfirmReservationRequest.LinePriceRequest;
 import com.reserv_engine.dto.ReservationResponse;
 import com.reserv_engine.dto.ReservationResponse.ReservationLineResponse;
-import com.reserv_engine.entity.Hold;
-import com.reserv_engine.entity.HoldLine;
 import com.reserv_engine.entity.Reservation;
-import com.reserv_engine.entity.ReservationLine;
-import com.reserv_engine.entity.ResourceUnit;
-import com.reserv_engine.exception.ResourceConflictException;
-import com.reserv_engine.exception.ResourceNotFoundException;
-import com.reserv_engine.repository.HoldRepository;
-import com.reserv_engine.repository.PaymentAttemptRepository;
 import com.reserv_engine.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * [Engine] Public-facing confirm (Hold -> Reservation) API.
  *
- * Unlike HoldService/HoldWriteService, this is deliberately a SINGLE
- * @Transactional method, not a two-bean REQUIRES_NEW split. That split
- * existed to solve one specific problem: two concurrent INSERTs racing on
- * a UNIQUE constraint, where the loser needs an untainted transaction to
- * fall back and read the winner's already-committed row. Confirm's
- * uniqueness contention (reservation.hold_id) is not expected to see that
- * kind of two-different-callers race under normal traffic — a Hold can
- * only be confirmed by whoever is holding it, so "two concurrent confirms
- * for the same Hold" realistically means a retry/double-click, not two
- * strangers racing for the same resource the way hold-creation was.
- *
- * KNOWN LIMITATION (accepted for now, not silently ignored): if a true
- * concurrent double-confirm ever DID happen, the loser's INSERT would
- * fail on the hold_id unique constraint and roll back this whole
- * transaction — including its own read of "does a Reservation already
- * exist" from earlier — so it would surface as a 500, not a clean
- * "already confirmed" response. If that ever becomes a real scenario
- * (not just same-user retry), revisit with the same REQUIRES_NEW pattern
- * used in HoldWriteService.
+ * Split from the actual write, same shape as HoldService/HoldWriteService,
+ * for the same reason: DuplicateConfirmDiscoveryTest proved that under 20
+ * concurrent identical confirm requests, ~45% (9/20) of losers were
+ * surfacing as raw 500s — the losing INSERT hit uq_reservation_hold_id's
+ * DataIntegrityViolationException, which nothing was catching. This
+ * class's job now is ONLY the fast-path check and the recovery catch;
+ * ReservationWriteService owns the actual REQUIRES_NEW write attempt.
  */
 @Service
 @RequiredArgsConstructor
 public class ReservationService {
 
-    private final HoldRepository holdRepository;
     private final ReservationRepository reservationRepository;
-    private final PaymentAttemptRepository paymentAttemptRepository;
+    private final ReservationWriteService reservationWriteService;
 
-    @Transactional
     public ReservationResponse confirm(ConfirmReservationRequest request) {
         var existing = reservationRepository.findByHoldIdWithLines(request.holdId());
         if (existing.isPresent()) {
             return toResponse(existing.get());
         }
 
-        Hold hold = holdRepository.findByIdWithLines(request.holdId())
-                .orElseThrow(() -> new ResourceNotFoundException("Hold not found: " + request.holdId()));
-
-
-        if (hold.getStatus() != HoldStatus.ACTIVE) {
-            throw new ResourceConflictException(
-                    "Hold is not ACTIVE, cannot confirm: " + hold.getId() + " (status=" + hold.getStatus() + ")");
+        try {
+            Reservation created = reservationWriteService.attemptCreate(request);
+            return toResponse(created);
+        } catch (DataIntegrityViolationException | CannotAcquireLockException ex) {
+            // Two distinct causes land here, both meaning the same thing —
+            // someone else already committed while we were racing them:
+            //  - DataIntegrityViolationException: a clean uq_reservation_hold_id
+            //    duplicate-key rejection.
+            //  - CannotAcquireLockException: MySQL chose this transaction as
+            //    the deadlock victim (error 1213) instead of cleanly
+            //    rejecting the duplicate key. Well-documented InnoDB
+            //    behavior — concurrent inserts colliding on the same unique
+            //    key each take a shared lock on the duplicate index record
+            //    while waiting, and with enough concurrent losers some of
+            //    them deadlock with each other rather than each getting a
+            //    clean rejection. DuplicateConfirmDiscoveryTest is what
+            //    surfaced this: catching only DataIntegrityViolationException
+            //    left 9/16 losers as raw 500s instead of 7/16 — the
+            //    deadlock-victim slice specifically.
+            // Either way, the recovery is identical: the winner has already
+            // committed by the time we're here, so re-querying finds it.
+            return reservationRepository.findByHoldIdWithLines(request.holdId())
+                    .map(this::toResponse)
+                    .orElseThrow(() -> ex); // extremely unlikely: not found, rethrow original
         }
-        if (hold.isExpired()) {
-            throw new ResourceConflictException("Hold has expired, cannot confirm: " + hold.getId());
-        }
-
-        paymentAttemptRepository.findByHoldIdAndStatus(hold.getId(), PaymentAttemptStatus.SUCCESS)
-                .orElseThrow(() -> new ResourceConflictException(
-                        "No successful payment attempt found for Hold, cannot confirm: " + hold.getId()));
-
-
-
-        Map<String, BigDecimal> pricesByHoldLineId = request.linePrices().stream()
-                .collect(Collectors.toMap(LinePriceRequest::holdLineId, LinePriceRequest::price));
-
-        Reservation reservation = new Reservation(hold.getId(), hold.getHolderId());
-
-        for (HoldLine line : hold.getHoldLines()) {
-            BigDecimal lockedPrice = pricesByHoldLineId.get(line.getId());
-            if (lockedPrice == null) {
-                throw new IllegalArgumentException("Missing price for hold line: " + line.getId());
-            }
-            reservation.addReservationLine(buildReservationLine(reservation, line, lockedPrice));
-        }
-
-
-        hold.setStatus(HoldStatus.CONSUMED);
-
-        Reservation saved = reservationRepository.save(reservation);
-        return toResponse(saved);
-    }
-
-    private ReservationLine buildReservationLine(Reservation reservation, HoldLine line, BigDecimal lockedPrice) {
-        if (line.getResourceUnit() != null) {
-            ResourceUnit unit = line.getResourceUnit();
-            // No lock needed here the way create-hold needed one: this unit
-            // is already exclusively HELD by this same Hold, nobody else can
-            // be racing to touch it. @Version still protects against the
-            // expiry-reaper-race case above, since a losing confirm would
-            // fail this transaction's flush, not corrupt the unit.
-            unit.setStatus(ResourceUnitStatus.RESERVED);
-            return new ReservationLine(reservation, unit, lockedPrice);
-        }
-        // COUNTER_BASED: capacity was already decremented at hold-creation
-        // time and stays decremented — confirm does not touch ResourcePool.
-        return new ReservationLine(reservation, line.getResourcePool(), line.getQuantity(), lockedPrice);
     }
 
     private ReservationResponse toResponse(Reservation reservation) {
