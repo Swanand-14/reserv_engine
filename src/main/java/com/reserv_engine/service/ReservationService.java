@@ -4,6 +4,7 @@ import com.reserv_engine.dto.ConfirmReservationRequest;
 import com.reserv_engine.dto.ReservationResponse;
 import com.reserv_engine.dto.ReservationResponse.ReservationLineResponse;
 import com.reserv_engine.entity.Reservation;
+import com.reserv_engine.exception.ResourceConflictException;
 import com.reserv_engine.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.CannotAcquireLockException;
@@ -37,27 +38,24 @@ public class ReservationService {
         try {
             Reservation created = reservationWriteService.attemptCreate(request);
             return toResponse(created);
-        } catch (DataIntegrityViolationException | CannotAcquireLockException ex) {
-            // Two distinct causes land here, both meaning the same thing —
-            // someone else already committed while we were racing them:
-            //  - DataIntegrityViolationException: a clean uq_reservation_hold_id
-            //    duplicate-key rejection.
-            //  - CannotAcquireLockException: MySQL chose this transaction as
-            //    the deadlock victim (error 1213) instead of cleanly
-            //    rejecting the duplicate key. Well-documented InnoDB
-            //    behavior — concurrent inserts colliding on the same unique
-            //    key each take a shared lock on the duplicate index record
-            //    while waiting, and with enough concurrent losers some of
-            //    them deadlock with each other rather than each getting a
-            //    clean rejection. DuplicateConfirmDiscoveryTest is what
-            //    surfaced this: catching only DataIntegrityViolationException
-            //    left 9/16 losers as raw 500s instead of 7/16 — the
-            //    deadlock-victim slice specifically.
-            // Either way, the recovery is identical: the winner has already
-            // committed by the time we're here, so re-querying finds it.
+        } catch (DataIntegrityViolationException | CannotAcquireLockException | ResourceConflictException ex) {
+            // Three distinct causes now land here, all meaning "someone else may
+            // have already committed while we were racing them":
+            //  - DataIntegrityViolationException / CannotAcquireLockException:
+            //    the INSERT itself lost (clean duplicate-key rejection or
+            //    InnoDB deadlock victim).
+            //  - ResourceConflictException: attemptCreate's own hold.getStatus()
+            //    != ACTIVE check fired — which happens both when the winner has
+            //    already committed CONSUMED (a race we should recover from) AND
+            //    for genuinely non-confirmable holds (CANCELLED/EXPIRED/no
+            //    payment — a real rejection, unrelated to this race).
+            // The re-query below disambiguates the ResourceConflictException
+            // case for free: if a reservation now exists, we lost the race and
+            // should return it; if none exists, it was a genuine rejection and
+            // the original exception is the correct thing to surface.
             return reservationRepository.findByHoldIdWithLines(request.holdId())
                     .map(this::toResponse)
-                    .orElseThrow(() -> ex); // extremely unlikely: not found, rethrow original
+                    .orElseThrow(() -> ex);
         }
     }
 
