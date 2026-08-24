@@ -10,6 +10,8 @@ import com.reserv_engine.exception.UserNotFoundException;
 import com.reserv_engine.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
 
 
 
@@ -40,6 +43,14 @@ public class UserService {
         user.setRoles(Set.of(Role.CUSTOMER));
 
         return userRepository.save(user);
+    }
+    public User authenticate(String email, String rawPassword) {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(email, rawPassword)
+        );
+        // if authenticate() didn't throw, credentials are valid
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException(email));
     }
 
     @Transactional(readOnly = true)

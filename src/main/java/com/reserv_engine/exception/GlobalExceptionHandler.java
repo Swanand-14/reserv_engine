@@ -37,6 +37,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT,
                 "This resource was just modified by another request — please retry.", request);
     }
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationFailure(
+            org.springframework.security.core.AuthenticationException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, "Invalid email or password", request);
+    }
 
     private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, HttpServletRequest request) {
         ErrorResponse body = new ErrorResponse(
