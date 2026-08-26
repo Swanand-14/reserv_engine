@@ -112,3 +112,21 @@ CREATE TABLE `payment_attempt` (
                                    KEY `idx_payment_attempt_hold_id_status` (`hold_id`,`status`),
                                    CONSTRAINT `fk_payment_attempt_hold` FOREIGN KEY (`hold_id`) REFERENCES `hold` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `users` (
+                         `id` char(36) NOT NULL,
+                         `email` varchar(255) NOT NULL,
+                         `password_hash` varchar(255) NOT NULL,
+                         `created_at` datetime(3) NOT NULL,
+                         `updated_at` datetime(3) NOT NULL,
+                         PRIMARY KEY (`id`),
+                         UNIQUE KEY `uq_users_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_roles` (
+                              `user_id` char(36) NOT NULL,
+                              `role` varchar(20) NOT NULL,
+                              PRIMARY KEY (`user_id`,`role`),
+                              CONSTRAINT `fk_user_roles_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+                              CONSTRAINT `chk_user_roles_role` CHECK ((`role` in (_utf8mb4'PLATFORM_ADMIN',_utf8mb4'ORGANIZER',_utf8mb4'CUSTOMER')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

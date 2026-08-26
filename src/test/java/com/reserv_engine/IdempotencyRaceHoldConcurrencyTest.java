@@ -24,34 +24,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Port of the manual idempotency-race curl testing: N concurrent requests,
- * SAME idempotencyKey, must resolve to exactly one logical Hold.
- *
- * Unlike the counter-based and unit-based tests, this is NOT a 201/409
- * split. Tracing HoldController -> HoldService -> HoldWriteService:
- * HoldController is unconditionally @ResponseStatus(CREATED) — there is no
- * branch that returns 409. Every one of the N racing requests is expected
- * to come back 201, via one of two paths:
- *   - the pre-check in HoldService.createHold finds the winner's Hold
- *     already committed (fast path), or
- *   - attemptCreate() throws DataIntegrityViolationException on the
- *     uq_hold_idempotency_key unique constraint, is caught, and recovers
- *     by re-querying (slow path) — per the REPEATABLE READ fix described
- *     in HoldService's javadoc.
- * Either path returns 201 with the SAME underlying Hold id. So the actual
- * invariant under test is: (a) every response is 201, (b) every response
- * body carries the identical Hold id, and (c) exactly one row exists in
- * `hold` for this idempotency key despite N concurrent writers.
- *
- * A second invariant rides along for free: because attemptCreate() runs
- * under REQUIRES_NEW and the class javadoc is explicit that a losing
- * transaction's DataIntegrityViolationException rolls back EVERYTHING it
- * did — including the in-memory pool.remainingCapacity() decrement, not
- * yet committed — the pool's capacity should be decremented exactly ONCE,
- * not N times. That's what the final remaining_capacity assertion proves:
- * no double-counting from the 19 transactions that raced and lost.
- */
 class IdempotencyRaceHoldConcurrencyTest extends AbstractIntegrationTest {
 
     @Autowired
@@ -61,29 +33,33 @@ class IdempotencyRaceHoldConcurrencyTest extends AbstractIntegrationTest {
     private JsonMapper objectMapper;
 
     private String poolId;
+    private String testToken;
+    private String testHolderId;
     private static final int STARTING_CAPACITY = 100;
 
     @BeforeEach
     void setUp() {
+        String email = "holdrace-" + UUID.randomUUID() + "@example.com";
+        String password = "password123";
+        signupAndLogin(email, password); // creates the user; token discarded, no roles yet
+        String initialToken = login(email, password);
+        grantOrganizerRole(initialToken);
+        testToken = login(email, password); // fresh token, now carries ORGANIZER
+        testHolderId = currentUserId(testToken);
+
         String windowId = UUID.randomUUID().toString();
         poolId = UUID.randomUUID().toString();
 
         jdbcTemplate.update("""
                 INSERT INTO availability_window (id, owner_id, start_time, end_time, created_at)
-                VALUES (?, 'test-owner', NOW(), NOW() + INTERVAL 1 DAY, NOW())
-                """, windowId);
+                VALUES (?, ?, NOW(), NOW() + INTERVAL 1 DAY, NOW())
+                """, windowId, testHolderId);
 
-        // Capacity deliberately far above the request count (20) — this
-        // test is isolating the idempotency-key race, not the capacity
-        // race already proven by CounterBasedHoldConcurrencyTest. If
-        // capacity were tight, a 409 here could mean either "duplicate
-        // key" or "pool full," and we'd lose the ability to tell them
-        // apart from the status code alone.
         jdbcTemplate.update("""
                 INSERT INTO resource_pool
                     (id, availability_window_id, owner_id, pool_mode, total_capacity, remaining_capacity, version, created_at)
-                VALUES (?, ?, 'test-owner', 'COUNTER_BASED', ?, ?, 0, NOW())
-                """, poolId, windowId, STARTING_CAPACITY, STARTING_CAPACITY);
+                VALUES (?, ?, ?, 'COUNTER_BASED', ?, ?, 0, NOW())
+                """, poolId, windowId, testHolderId, STARTING_CAPACITY, STARTING_CAPACITY);
     }
 
     @Test
@@ -102,27 +78,28 @@ class IdempotencyRaceHoldConcurrencyTest extends AbstractIntegrationTest {
         Set<String> distinctHoldIds = ConcurrentHashMap.newKeySet();
 
         for (int i = 0; i < totalRequests; i++) {
-            int idx = i;
             executor.submit(() -> {
                 readyLatch.countDown();
                 try {
                     startLatch.await();
 
-                    // Same idempotencyKey on every request — that's the
-                    // entire point of the race. Different holderId/quantity
-                    // don't matter here since only the FIRST committed
-                    // Hold survives; every recovery path returns that
-                    // same row regardless of what a losing request asked for.
+                    // holderId in the body is now irrelevant — HoldController
+                    // overwrites it with the authenticated user's real id
+                    // before calling HoldService. Left as a fixed literal
+                    // since every racing request must resolve to the SAME
+                    // holder anyway (testHolderId), matching what the
+                    // ownership guard now requires.
                     String body = """
                             {
-                              "holderId": "user-%d",
+                              "holderId": "%s",
                               "idempotencyKey": "%s",
                               "lines": [{"resourcePoolId": "%s", "quantity": 1}]
                             }
-                            """.formatted(idx, sharedIdempotencyKey, poolId);
+                            """.formatted(testHolderId, sharedIdempotencyKey, poolId);
 
                     HttpHeaders headers = new HttpHeaders();
                     headers.setContentType(MediaType.APPLICATION_JSON);
+                    headers.setBearerAuth(testToken);
 
                     ResponseEntity<String> response = restTemplate.postForEntity(
                             baseUrl() + "/api/v1/holds",

@@ -7,6 +7,10 @@ import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -56,5 +60,60 @@ public abstract class AbstractIntegrationTest {
 
     protected String baseUrl() {
         return "http://localhost:" + port;
+    }
+
+    protected String signupAndLogin(String email, String password) {
+        String signupBody = """
+            {"email":"%s","password":"%s"}
+            """.formatted(email, password);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        restTemplate.postForEntity(baseUrl() + "/auth/signup", new HttpEntity<>(signupBody, headers), String.class);
+
+        ResponseEntity<String> loginResponse = restTemplate.postForEntity(
+                baseUrl() + "/auth/login", new HttpEntity<>(signupBody, headers), String.class);
+
+        // token is the first field in LoginResponse — cheap extraction, no need
+        // to pull in the DTO class here and create a test->main dependency
+        String body = loginResponse.getBody();
+        int start = body.indexOf("\"token\":\"") + 9;
+        int end = body.indexOf("\"", start);
+        return body.substring(start, end);
+    }
+
+    protected String login(String email, String password) {
+        String body = """
+            {"email":"%s","password":"%s"}
+            """.formatted(email, password);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                baseUrl() + "/auth/login", new HttpEntity<>(body, headers), String.class);
+        String responseBody = response.getBody();
+        int start = responseBody.indexOf("\"token\":\"") + 9;
+        int end = responseBody.indexOf("\"", start);
+        return responseBody.substring(start, end);
+    }
+
+    protected String currentUserId(String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        ResponseEntity<String> meResponse = restTemplate.exchange(
+                baseUrl() + "/users/me", org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(headers), String.class);
+        String body = meResponse.getBody();
+        int start = body.indexOf("\"id\":\"") + 6;
+        int end = body.indexOf("\"", start);
+        return body.substring(start, end);
+    }
+
+    protected String grantOrganizerRole(String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+        restTemplate.postForEntity(baseUrl() + "/users/me/roles",
+                new HttpEntity<>("{\"role\":\"ORGANIZER\"}", headers), String.class);
+        // caller must re-login after this to get a token with the updated roles claim
+        return token;
     }
 }
