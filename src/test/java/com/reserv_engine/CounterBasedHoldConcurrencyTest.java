@@ -37,9 +37,14 @@ class CounterBasedHoldConcurrencyTest extends AbstractIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     private String poolId;
+    private String testToken;
 
     @BeforeEach
     void setUp() {
+        String email = "counterrace-" + UUID.randomUUID() + "@example.com";
+        String password = "password123";
+        signupAndLogin(email, password);
+        testToken = login(email, password);
         String windowId = UUID.randomUUID().toString();
         poolId = UUID.randomUUID().toString();
 
@@ -89,13 +94,14 @@ class CounterBasedHoldConcurrencyTest extends AbstractIntegrationTest {
 
                     String body = """
                             {
-                              "holderId": "user-%d",
+                              "holderId": "unused",
                               "idempotencyKey": "counter-race-%s-%d",
                               "lines": [{"resourcePoolId": "%s", "quantity": 1}]
                             }
-                            """.formatted(idx, poolId, idx, poolId);
+                            """.formatted( poolId, idx, poolId);
 
                     HttpHeaders headers = new HttpHeaders();
+                    headers.setBearerAuth(testToken);
                     headers.setContentType(MediaType.APPLICATION_JSON);
 
                     ResponseEntity<String> response = restTemplate.postForEntity(

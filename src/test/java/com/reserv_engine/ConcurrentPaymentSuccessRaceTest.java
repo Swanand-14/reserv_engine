@@ -47,6 +47,8 @@ class ConcurrentPaymentSuccessRaceTest extends AbstractIntegrationTest {
 
     private static final int ITERATIONS = 5;
     private static final int CONCURRENT_ATTEMPTS_PER_ITERATION = 20;
+    private String testToken;
+    private String testHolderId;
 
     private String seedActiveHold() {
         String holdId = UUID.randomUUID().toString();
@@ -55,8 +57,8 @@ class ConcurrentPaymentSuccessRaceTest extends AbstractIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO hold (id, holder_id, status, idempotency_key, created_at, expires_at, version)
-                VALUES (?, 'test-holder', 'ACTIVE', ?, ?, ?, 0)
-                """, holdId, "payment-race-hold-" + holdId, createdAt, expiresAt);
+                VALUES (?, ?, 'ACTIVE', ?, ?, ?, 0)
+                """, holdId, testHolderId,"payment-race-hold-" + holdId, createdAt, expiresAt);
 
         return holdId;
     }
@@ -72,6 +74,7 @@ class ConcurrentPaymentSuccessRaceTest extends AbstractIntegrationTest {
                 """.formatted(holdId, idempotencyKey);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/payment-attempts",
                 new HttpEntity<>(body, headers), String.class);
@@ -79,6 +82,11 @@ class ConcurrentPaymentSuccessRaceTest extends AbstractIntegrationTest {
 
     @Test
     void concurrentSuccessAttempts_differentIdempotencyKeys_atMostOneShouldReachSuccess() throws InterruptedException {
+        String email = "paymentrace-" + UUID.randomUUID() + "@example.com";
+        String password = "password123";
+        signupAndLogin(email, password);
+        testToken = login(email, password);
+        testHolderId = currentUserId(testToken);
         List<String> violations = new ArrayList<>();
 
         for (int i = 0; i < ITERATIONS; i++) {

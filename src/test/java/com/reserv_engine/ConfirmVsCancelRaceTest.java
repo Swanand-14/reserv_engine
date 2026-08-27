@@ -44,6 +44,10 @@ class ConfirmVsCancelRaceTest extends AbstractIntegrationTest {
     private static final int TOTAL_CAPACITY = 10;
     private static final int STARTING_REMAINING = TOTAL_CAPACITY - 1; // 1 already "held"
 
+    private String testToken;
+    private String testHolderId;
+
+
     private record SeededHold(String poolId, String holdId, String holdLineId) {}
 
     private SeededHold seedFreshHold() {
@@ -66,8 +70,8 @@ class ConfirmVsCancelRaceTest extends AbstractIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO hold (id, holder_id, status, idempotency_key, created_at, expires_at, version)
-                VALUES (?, 'test-holder', 'ACTIVE', ?, NOW(), ?, 0)
-                """, holdId, "confirm-cancel-race-" + holdId,
+                VALUES (?, ?, 'ACTIVE', ?, NOW(), ?, 0)
+                """, holdId,testHolderId, "confirm-cancel-race-" + holdId,
                 java.time.LocalDateTime.now().plusHours(1));
 
         jdbcTemplate.update("""
@@ -92,15 +96,18 @@ class ConfirmVsCancelRaceTest extends AbstractIntegrationTest {
                 """.formatted(hold.holdId(), hold.holdLineId());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/reservations/confirm",
                 new HttpEntity<>(body, headers), String.class);
     }
 
     private ResponseEntity<String> callCancel(SeededHold hold) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/holds/" + hold.holdId() + "/cancel",
-                null, String.class);
+                new HttpEntity<>(headers), String.class);
     }
 
     @Test
@@ -114,6 +121,11 @@ class ConfirmVsCancelRaceTest extends AbstractIntegrationTest {
         // tuned in). Hardcoded rather than re-measured each run — the
         // number is known now, no need for calibration machinery to
         // rediscover it every time.
+        String email = "confirmcancelrace-" + UUID.randomUUID() + "@example.com";
+        String password = "password123";
+        signupAndLogin(email, password);
+        testToken = login(email, password);
+        testHolderId = currentUserId(testToken);
         long headStartMs = 25;
 
         ExecutorService executor = Executors.newFixedThreadPool(2);

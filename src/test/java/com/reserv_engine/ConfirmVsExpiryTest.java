@@ -51,7 +51,10 @@ class ConfirmVsExpiryTest extends AbstractIntegrationTest {
     private static final int ITERATIONS = 10;
     private static final int CONCURRENT_CONFIRMS_PER_ITERATION = 10;
     private static final int TOTAL_CAPACITY = 10;
-    private static final int STARTING_REMAINING = TOTAL_CAPACITY - 1; // 1 already "held"
+    private static final int STARTING_REMAINING = TOTAL_CAPACITY - 1;
+    // 1 already "held"
+    private String testToken;
+    private String testHolderId;
 
     private record SeededHold(String poolId, String holdId, String holdLineId) {}
 
@@ -61,6 +64,7 @@ class ConfirmVsExpiryTest extends AbstractIntegrationTest {
         String holdId = UUID.randomUUID().toString();
         String holdLineId = UUID.randomUUID().toString();
         String paymentId = UUID.randomUUID().toString();
+
 
         jdbcTemplate.update("""
                 INSERT INTO availability_window (id, owner_id, start_time, end_time, created_at)
@@ -84,8 +88,8 @@ class ConfirmVsExpiryTest extends AbstractIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO hold (id, holder_id, status, idempotency_key, created_at, expires_at, version)
-                VALUES (?, 'test-holder', 'ACTIVE', ?, ?, ?, 0)
-                """, holdId, "confirm-expiry-race-" + holdId, createdAt, expiresAt);
+                VALUES (?, ?, 'ACTIVE', ?, ?, ?, 0)
+                """, holdId, testHolderId,"confirm-expiry-race-" + holdId, createdAt, expiresAt);
 
         jdbcTemplate.update("""
                 INSERT INTO hold_line (id, hold_id, resource_pool_id, resource_unit_id, quantity)
@@ -109,6 +113,7 @@ class ConfirmVsExpiryTest extends AbstractIntegrationTest {
                 """.formatted(hold.holdId(), hold.holdLineId());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/reservations/confirm",
                 new HttpEntity<>(body, headers), String.class);
@@ -116,6 +121,11 @@ class ConfirmVsExpiryTest extends AbstractIntegrationTest {
 
     @Test
     void confirmAgainstAlreadyExpiredHold_alwaysRejected_evenUnderConcurrentReaperExecution() throws Exception {
+        String email = "confirmexpiry-" + UUID.randomUUID() + "@example.com";
+        String password = "password123";
+        signupAndLogin(email, password);
+        testToken = login(email, password);
+        testHolderId = currentUserId(testToken);
         ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_CONFIRMS_PER_ITERATION + 1);
         List<String> violations = new ArrayList<>();
 
