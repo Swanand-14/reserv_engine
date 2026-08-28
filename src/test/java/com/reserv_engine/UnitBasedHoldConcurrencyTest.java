@@ -43,9 +43,14 @@ class UnitBasedHoldConcurrencyTest extends AbstractIntegrationTest {
 
     private String poolId;
     private String unitId;
+    private String testToken;
 
     @BeforeEach
     void setUp() {
+        String email = "unitrace-" + UUID.randomUUID() + "@example.com";
+        String password = "password123";
+        signupAndLogin(email, password);
+        testToken = login(email, password);
         String windowId = UUID.randomUUID().toString();
         poolId = UUID.randomUUID().toString();
         unitId = UUID.randomUUID().toString();
@@ -109,6 +114,7 @@ class UnitBasedHoldConcurrencyTest extends AbstractIntegrationTest {
 
                     HttpHeaders headers = new HttpHeaders();
                     headers.setContentType(MediaType.APPLICATION_JSON);
+                    headers.setBearerAuth(testToken);
 
                     ResponseEntity<String> response = restTemplate.postForEntity(
                             baseUrl() + "/api/v1/holds",

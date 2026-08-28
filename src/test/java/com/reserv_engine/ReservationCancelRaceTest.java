@@ -1,7 +1,10 @@
 package com.reserv_engine;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -47,6 +50,16 @@ class ReservationCancelRaceTest extends AbstractIntegrationTest {
     private static final int ITERATIONS = 20;
     private static final int TOTAL_CAPACITY = 10;
     private static final int STARTING_REMAINING = TOTAL_CAPACITY - 1; // 1 already "reserved"
+    private String testToken;
+    private String testHolderId;
+    @BeforeEach
+    void setUpAuth() {
+        String email = "reservationcancelrace-" + UUID.randomUUID() + "@example.com";
+        String password = "password123";
+        signupAndLogin(email, password);
+        testToken = login(email, password);
+        testHolderId = currentUserId(testToken);
+    }
 
     private record SeededCounterReservation(String poolId, String reservationId) {}
     private record SeededUnitReservation(String unitId, String reservationId) {}
@@ -68,8 +81,8 @@ class ReservationCancelRaceTest extends AbstractIntegrationTest {
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(1);
         jdbcTemplate.update("""
                 INSERT INTO hold (id, holder_id, status, idempotency_key, created_at, expires_at, version)
-                VALUES (?, 'test-holder', 'CONSUMED', ?, ?, ?, 0)
-                """, holdId, "reservation-cancel-race-" + holdId, createdAt, expiresAt);
+                VALUES (?, ?, 'CONSUMED', ?, ?, ?, 0)
+                """, holdId, testHolderId,"reservation-cancel-race-" + holdId, createdAt, expiresAt);
         return holdId;
     }
 
@@ -88,8 +101,8 @@ class ReservationCancelRaceTest extends AbstractIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO reservation (id, hold_id, holder_id, status, confirmed_at, version)
-                VALUES (?, ?, 'test-holder', 'CONFIRMED', ?, 0)
-                """, reservationId, holdId, LocalDateTime.now());
+                VALUES (?, ?, ?, 'CONFIRMED', ?, 0)
+                """, reservationId, holdId,testHolderId, LocalDateTime.now());
 
         jdbcTemplate.update("""
                 INSERT INTO reservation_line (id, reservation_id, resource_pool_id, resource_unit_id, quantity, locked_price)
@@ -122,8 +135,8 @@ class ReservationCancelRaceTest extends AbstractIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO reservation (id, hold_id, holder_id, status, confirmed_at, version)
-                VALUES (?, ?, 'test-holder', 'CONFIRMED', ?, 0)
-                """, reservationId, holdId, LocalDateTime.now());
+                VALUES (?, ?, ?, 'CONFIRMED', ?, 0)
+                """, reservationId, holdId, testHolderId, LocalDateTime.now());
 
         jdbcTemplate.update("""
                 INSERT INTO reservation_line (id, reservation_id, resource_pool_id, resource_unit_id, quantity, locked_price)
@@ -134,9 +147,11 @@ class ReservationCancelRaceTest extends AbstractIntegrationTest {
     }
 
     private ResponseEntity<String> callCancel(String reservationId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/reservations/" + reservationId + "/cancel",
-                null, String.class);
+                new HttpEntity<>(headers), String.class);
     }
 
     private HttpStatus[] raceTwoCancels(String reservationId) throws Exception {

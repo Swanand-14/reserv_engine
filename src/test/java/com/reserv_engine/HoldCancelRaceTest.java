@@ -1,7 +1,10 @@
 package com.reserv_engine;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -57,6 +60,16 @@ class HoldCancelRaceTest extends AbstractIntegrationTest {
     private static final int ITERATIONS = 20;
     private static final int TOTAL_CAPACITY = 10;
     private static final int STARTING_REMAINING = TOTAL_CAPACITY - 1; // 1 already "held"
+    private String testToken;
+    private String testHolderId;
+    @BeforeEach
+    void setUpAuth() {
+        String email = "holdcancelrace-" + UUID.randomUUID() + "@example.com";
+        String password = "password123";
+        signupAndLogin(email, password);
+        testToken = login(email, password);
+        testHolderId = currentUserId(testToken);
+    }
 
     private record SeededCounterHold(String poolId, String holdId) {}
     private record SeededUnitHold(String unitId, String holdId) {}
@@ -89,8 +102,8 @@ class HoldCancelRaceTest extends AbstractIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO hold (id, holder_id, status, idempotency_key, created_at, expires_at, version)
-                VALUES (?, 'test-holder', 'ACTIVE', ?, ?, ?, 0)
-                """, holdId, "cancel-race-counter-" + holdId, createdAt, expiresAt);
+                VALUES (?, ?, 'ACTIVE', ?, ?, ?, 0)
+                """, holdId, testHolderId,"cancel-race-counter-" + holdId, createdAt, expiresAt);
 
         jdbcTemplate.update("""
                 INSERT INTO hold_line (id, hold_id, resource_pool_id, resource_unit_id, quantity)
@@ -125,8 +138,8 @@ class HoldCancelRaceTest extends AbstractIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO hold (id, holder_id, status, idempotency_key, created_at, expires_at, version)
-                VALUES (?, 'test-holder', 'ACTIVE', ?, ?, ?, 0)
-                """, holdId, "cancel-race-unit-" + holdId, createdAt, expiresAt);
+                VALUES (?, ?, 'ACTIVE', ?, ?, ?, 0)
+                """, holdId,testHolderId, "cancel-race-unit-" + holdId, createdAt, expiresAt);
 
         jdbcTemplate.update("""
                 INSERT INTO hold_line (id, hold_id, resource_pool_id, resource_unit_id, quantity)
@@ -137,9 +150,11 @@ class HoldCancelRaceTest extends AbstractIntegrationTest {
     }
 
     private ResponseEntity<String> callCancel(String holdId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/holds/" + holdId + "/cancel",
-                null, String.class);
+                new HttpEntity<>(headers), String.class);
     }
 
     /** Runs two concurrent cancels on holdId, returns their statuses in submission order. */

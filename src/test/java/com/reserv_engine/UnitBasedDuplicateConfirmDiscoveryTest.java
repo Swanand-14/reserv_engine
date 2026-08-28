@@ -53,6 +53,8 @@ class UnitBasedDuplicateConfirmDiscoveryTest extends AbstractIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     private static final int CONCURRENT_REQUESTS = 20;
+    private String testToken;
+    private String testHolderId;
 
     private record SeededHold(String unitId, String holdId, String holdLineId) {}
 
@@ -90,8 +92,8 @@ class UnitBasedDuplicateConfirmDiscoveryTest extends AbstractIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO hold (id, holder_id, status, idempotency_key, created_at, expires_at, version)
-                VALUES (?, 'test-holder', 'ACTIVE', ?, ?, ?, 0)
-                """, holdId, "unit-duplicate-confirm-" + holdId, createdAt, expiresAt);
+                VALUES (?,?, 'ACTIVE', ?, ?, ?, 0)
+                """, holdId,testHolderId, "unit-duplicate-confirm-" + holdId, createdAt, expiresAt);
 
         jdbcTemplate.update("""
                 INSERT INTO hold_line (id, hold_id, resource_pool_id, resource_unit_id, quantity)
@@ -108,6 +110,11 @@ class UnitBasedDuplicateConfirmDiscoveryTest extends AbstractIntegrationTest {
 
     @Test
     void twentyIdenticalConcurrentConfirms_unitBased_atMostOneReservationEverCreated() throws InterruptedException {
+        String email = "unitdupconfirm-" + UUID.randomUUID() + "@example.com";
+        String password = "password123";
+        signupAndLogin(email, password);
+        testToken = login(email, password);
+        testHolderId = currentUserId(testToken);
         SeededHold hold = seedActiveUnitBasedHoldReadyToConfirm();
 
         String body = """
@@ -135,7 +142,9 @@ class UnitBasedDuplicateConfirmDiscoveryTest extends AbstractIntegrationTest {
                     startLatch.await();
 
                     HttpHeaders headers = new HttpHeaders();
+
                     headers.setContentType(MediaType.APPLICATION_JSON);
+                    headers.setBearerAuth(testToken);
                     ResponseEntity<String> response = restTemplate.postForEntity(
                             baseUrl() + "/api/v1/reservations/confirm",
                             new HttpEntity<>(body, headers), String.class);
