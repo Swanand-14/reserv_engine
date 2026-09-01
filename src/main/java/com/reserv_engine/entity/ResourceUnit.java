@@ -62,7 +62,9 @@ public class ResourceUnit {
 
     @PrePersist
     void onCreate() {
-
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
 
