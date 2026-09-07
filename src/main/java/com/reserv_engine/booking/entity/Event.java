@@ -2,6 +2,7 @@ package com.reserv_engine.booking.entity;
 
 import com.reserv_engine.booking.types.EventLifecycleStatus;
 import com.reserv_engine.entity.User;
+import com.reserv_engine.exception.ResourceConflictException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -67,6 +68,13 @@ public class Event {
     public void addShowtime(Showtime showtime) {
         showtimes.add(showtime);
         showtime.setEvent(this);
+    }
+    public void publish() {
+        if (lifecycleStatus != EventLifecycleStatus.DRAFT) {
+            throw new ResourceConflictException(
+                    "Event cannot be published from status " + lifecycleStatus);
+        }
+        this.lifecycleStatus = EventLifecycleStatus.PUBLISHED;
     }
 
     @PrePersist
