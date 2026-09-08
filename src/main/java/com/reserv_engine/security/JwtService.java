@@ -69,4 +69,7 @@ public class JwtService {
             return false; // expired, malformed, bad signature — all invalid
         }
     }
+    public long getExpirationSeconds() {
+        return expirationMillis / 1000;
+    }
 }

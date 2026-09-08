@@ -7,6 +7,10 @@ import com.reserv_engine.security.SecurityUtils;
 import com.reserv_engine.service.ReservationCancelService;
 import com.reserv_engine.service.ReservationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -33,5 +37,11 @@ public class ReservationController {
     public ReservationResponse cancel(@PathVariable("id") String id) {
         ownershipGuard.assertOwnsReservation(id, SecurityUtils.currentUserId());
         return reservationCancelService.cancel(id);
+    }
+    @GetMapping("/my")
+    @PreAuthorize("isAuthenticated()")
+    public Page<ReservationResponse> myReservations(
+            @PageableDefault(size = 20, sort = "confirmedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return reservationService.findMyReservations(SecurityUtils.currentUserId(), pageable);
     }
 }

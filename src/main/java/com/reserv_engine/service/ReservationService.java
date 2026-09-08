@@ -9,7 +9,14 @@ import com.reserv_engine.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * [Engine] Public-facing confirm (Hold -> Reservation) API.
@@ -75,5 +82,20 @@ public class ReservationService {
                 reservation.getConfirmedAt(),
                 lines
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ReservationResponse> findMyReservations(String holderId, Pageable pageable) {
+        Page<Reservation> page = reservationRepository.findByHolderId(holderId, pageable);
+
+        List<String> ids = page.getContent().stream().map(Reservation::getId).toList();
+        if (ids.isEmpty()) {
+            return page.map(this::toResponse);
+        }
+
+        Map<String, Reservation> withLines = reservationRepository.findAllByIdInWithLines(ids).stream()
+                .collect(Collectors.toMap(Reservation::getId, r -> r));
+
+        return page.map(r -> toResponse(withLines.get(r.getId())));
     }
 }

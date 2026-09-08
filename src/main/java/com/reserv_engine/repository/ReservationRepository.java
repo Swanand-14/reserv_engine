@@ -1,10 +1,13 @@
 package com.reserv_engine.repository;
 
 import com.reserv_engine.entity.Reservation;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ReservationRepository extends JpaRepository<Reservation, String> {
@@ -34,5 +37,15 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
             WHERE r.id = :id
             """)
     Optional<Reservation> findByIdWithLines(@Param("id") String id);
+    Page<Reservation> findByHolderId(String holderId, Pageable pageable);
+
+    @Query("""
+        SELECT DISTINCT r FROM Reservation r
+        LEFT JOIN FETCH r.reservationLines rl
+        LEFT JOIN FETCH rl.resourcePool
+        LEFT JOIN FETCH rl.resourceUnit
+        WHERE r.id IN :ids
+        """)
+    List<Reservation> findAllByIdInWithLines(@Param("ids") List<String> ids);
 
 }
