@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/venues")
 public class VenueController {
@@ -20,6 +22,16 @@ public class VenueController {
     public VenueController(VenueService venueService) {
         this.venueService = venueService;
     }
+
+    @GetMapping
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public List<VenueResponse> myVenues() {
+        String currentUserId = SecurityUtils.currentUserId();
+        return venueService.getMyVenues(currentUserId).stream()
+                .map(VenueResponse::from)
+                .toList();
+    }
+
 
     @PostMapping
     @PreAuthorize("hasRole('ORGANIZER')")

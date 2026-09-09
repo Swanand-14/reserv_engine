@@ -26,7 +26,8 @@ export function LoginPage() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+  <div className="center-page">
+    <form className="card form" onSubmit={handleSubmit}>
       <h1>Log in</h1>
       <label>
         Email
@@ -46,13 +47,14 @@ export function LoginPage() {
           required
         />
       </label>
-      {error && <p role="alert">{error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
       <button type="submit" disabled={loading}>
         {loading ? "Logging in..." : "Log in"}
       </button>
-      <p>
+      <p className="muted">
         No account? <Link to="/signup">Sign up</Link>
       </p>
     </form>
-  );
+  </div>
+);
 }

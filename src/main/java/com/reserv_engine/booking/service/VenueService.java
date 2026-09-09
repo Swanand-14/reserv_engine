@@ -8,6 +8,8 @@ import com.reserv_engine.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 public class VenueService {
 
@@ -17,6 +19,11 @@ public class VenueService {
     public VenueService(VenueRepository venueRepository, UserRepository userRepository) {
         this.venueRepository = venueRepository;
         this.userRepository = userRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Venue> getMyVenues(String managerId) {
+        return venueRepository.findByManagerId(managerId);
     }
 
     @Transactional
