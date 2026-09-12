@@ -22,4 +22,9 @@ public class EventBrowseController {
     public List<EventBrowseResponse> listPublishedEvents() {
         return eventBrowseService.listPublishedEvents();
     }
+    @GetMapping("/{eventId}")
+    @PreAuthorize("isAuthenticated()")
+    public EventBrowseResponse getEventDetail(@PathVariable String eventId) {
+        return eventBrowseService.getPublishedEventDetail(eventId);
+    }
 }

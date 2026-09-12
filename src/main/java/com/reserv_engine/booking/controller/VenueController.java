@@ -27,7 +27,7 @@ public class VenueController {
     @PreAuthorize("hasRole('ORGANIZER')")
     public List<VenueResponse> myVenues() {
         String currentUserId = SecurityUtils.currentUserId();
-        return venueService.getMyVenues(currentUserId).stream()
+        return venueService.getMyVenueSummaries(currentUserId).stream()
                 .map(VenueResponse::from)
                 .toList();
     }

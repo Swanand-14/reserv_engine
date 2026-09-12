@@ -2,6 +2,7 @@ package com.reserv_engine.booking.service;
 
 import com.reserv_engine.booking.entity.Venue;
 import com.reserv_engine.booking.repository.VenueRepository;
+import com.reserv_engine.booking.repository.VenueSummaryRow;
 import com.reserv_engine.entity.User;
 import com.reserv_engine.exception.ResourceNotFoundException;
 import com.reserv_engine.repository.UserRepository;
@@ -22,8 +23,8 @@ public class VenueService {
     }
 
     @Transactional(readOnly = true)
-    public List<Venue> getMyVenues(String managerId) {
-        return venueRepository.findByManagerId(managerId);
+    public List<VenueSummaryRow> getMyVenueSummaries(String managerId) {
+        return venueRepository.findSummaryByManagerId(managerId);
     }
 
     @Transactional

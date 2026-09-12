@@ -14,4 +14,14 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, String> {
     Optional<Showtime> findByAvailabilityWindowId(String availabilityWindowId);
     @Query("SELECT s FROM Showtime s JOIN FETCH s.event WHERE s.id = :showtimeId")
     Optional<Showtime> findByIdWithEvent(@Param("showtimeId") String showtimeId);
+    @Query("""
+            SELECT s.id AS id, s.startTime AS startTime, s.endTime AS endTime,
+                   h.name AS hallName, v.name AS venueName,
+                   (SELECT MIN(tt.price) FROM TicketTier tt WHERE tt.showtime = s) AS startingPrice
+            FROM Showtime s JOIN s.hall h JOIN h.venue v
+            WHERE s.event.id = :eventId
+            ORDER BY s.startTime
+            """)
+    List<ShowtimeBrowseRow> findBrowseRowsByEventId(@Param("eventId") String eventId);
+
 }

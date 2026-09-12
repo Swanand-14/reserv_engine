@@ -31,8 +31,9 @@ public class ShowtimeBrowseService {
             throw new ResourceNotFoundException("Event not found: " + eventId);
         }
 
-        return showtimeRepository.findByEventId(eventId).stream()
-                .map(s -> new ShowtimeBrowseResponse(s.getId(), s.getHall().getId(), s.getStartTime(), s.getEndTime()))
+        return showtimeRepository.findBrowseRowsByEventId(eventId).stream()
+                .map(ShowtimeBrowseResponse::from)
                 .toList();
     }
+
 }
