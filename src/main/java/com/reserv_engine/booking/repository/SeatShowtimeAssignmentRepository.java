@@ -23,4 +23,20 @@ public interface SeatShowtimeAssignmentRepository extends JpaRepository<SeatShow
             """)
     Optional<SeatShowtimeAssignment> findBySeatIdAndShowtimeIdWithResourceUnitAndPool(
             @Param("seatId") String seatId, @Param("showtimeId") String showtimeId);
+
+    @Query("""
+            SELECT r.id AS reservationId, r.status AS reservationStatus, r.confirmedAt AS confirmedAt,
+                   ev.title AS eventTitle, st.id AS showtimeId, st.startTime AS startTime, st.endTime AS endTime,
+                   s.label AS seatLabel, tt.name AS tierName, rl.lockedPrice AS lockedPrice
+            FROM SeatShowtimeAssignment ssa
+            JOIN ssa.seat s
+            JOIN ssa.showtime st
+            JOIN st.event ev
+            JOIN ReservationLine rl ON rl.resourceUnit = ssa.resourceUnit
+            JOIN rl.reservation r
+            JOIN TicketTier tt ON tt.resourcePool = rl.resourcePool
+            WHERE r.holderId = :holderId
+            ORDER BY r.confirmedAt DESC
+            """)
+    List<MyReservationRow> findMyReservationRows(@Param("holderId") String holderId);
 }
