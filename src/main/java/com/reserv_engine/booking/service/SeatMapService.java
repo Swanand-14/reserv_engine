@@ -21,11 +21,14 @@ public class SeatMapService {
         this.seatRepository = seatRepository;
     }
 
-    public List<SeatMapEntryResponse> getSeatMap(String showtimeId) {
+    public List<SeatMapEntryResponse> getSeatMap(String showtimeId, String currentUserId) {
         Showtime showtime = showtimeRepository.findByIdWithEvent(showtimeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Showtime not found: " + showtimeId));
 
-        if (showtime.getEvent().getLifecycleStatus() != EventLifecycleStatus.PUBLISHED) {
+        boolean isPublished = showtime.getEvent().getLifecycleStatus() == EventLifecycleStatus.PUBLISHED;
+        boolean isOwningOrganizer = showtime.getEvent().getOrganizer().getId().equals(currentUserId);
+
+        if (!isPublished && !isOwningOrganizer) {
             throw new ResourceNotFoundException("Showtime not found: " + showtimeId);
         }
 

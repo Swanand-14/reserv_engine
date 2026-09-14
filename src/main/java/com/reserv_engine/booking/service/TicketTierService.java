@@ -1,5 +1,6 @@
 package com.reserv_engine.booking.service;
 
+import com.reserv_engine.booking.dto.response.TicketTierResponse;
 import com.reserv_engine.booking.entity.Showtime;
 import com.reserv_engine.booking.entity.TicketTier;
 import com.reserv_engine.booking.repository.ShowtimeRepository;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 public class TicketTierService {
@@ -44,5 +46,18 @@ public class TicketTierService {
                 showtime.getAvailabilityWindow().getId(), currentUserId, PoolMode.UNIT_BASED, totalCapacity);
 
         return ticketTierRepository.save(new TicketTier(showtime, pool, name, price));
+    }
+    @Transactional(readOnly = true)
+    public List<TicketTierResponse> listForShowtime(String showtimeId, String currentUserId) {
+        Showtime showtime = showtimeRepository.findById(showtimeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Showtime not found: " + showtimeId));
+
+        if (!showtime.getEvent().getOrganizer().getId().equals(currentUserId)) {
+            throw new AccessDeniedException("You do not organize the Event for this Showtime");
+        }
+
+        return ticketTierRepository.findByShowtimeId(showtimeId).stream()
+                .map(TicketTierResponse::from)
+                .toList();
     }
 }

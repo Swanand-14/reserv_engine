@@ -2,6 +2,7 @@ package com.reserv_engine.booking.controller;
 
 import com.reserv_engine.booking.dto.request.CreateEventRequest;
 import com.reserv_engine.booking.dto.response.EventResponse;
+import com.reserv_engine.booking.dto.response.OrganizerEventResponse;
 import com.reserv_engine.booking.entity.Event;
 import com.reserv_engine.booking.service.EventPublishService;
 import com.reserv_engine.booking.service.EventService;
@@ -11,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/events")
@@ -37,5 +40,11 @@ public class EventController {
         String currentUserId = SecurityUtils.currentUserId();
         Event event = eventPublishService.publish(eventId, currentUserId);
         return EventResponse.from(event);
+    }
+    @GetMapping("/mine")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public List<OrganizerEventResponse> myEvents() {
+        String currentUserId = SecurityUtils.currentUserId();
+        return eventService.getMyEvents(currentUserId);
     }
 }

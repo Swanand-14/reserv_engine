@@ -1,6 +1,7 @@
 package com.reserv_engine.booking.controller;
 
 import com.reserv_engine.booking.dto.request.CreateShowtimeRequest;
+import com.reserv_engine.booking.dto.response.ShowtimeBrowseResponse;
 import com.reserv_engine.booking.dto.response.ShowtimeResponse;
 import com.reserv_engine.booking.entity.Showtime;
 import com.reserv_engine.booking.service.ShowtimeService;
@@ -10,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/events/{eventId}/showtimes")
@@ -29,5 +32,11 @@ public class ShowtimeController {
         Showtime showtime = showtimeService.create(
                 eventId, currentUserId, request.hallId(), request.startTime(), request.endTime());
         return ResponseEntity.status(HttpStatus.CREATED).body(ShowtimeResponse.from(showtime));
+    }
+    @GetMapping("/mine")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public List<ShowtimeBrowseResponse> myShowtimes(@PathVariable String eventId) {
+        String currentUserId = SecurityUtils.currentUserId();
+        return showtimeService.listMine(eventId, currentUserId);
     }
 }

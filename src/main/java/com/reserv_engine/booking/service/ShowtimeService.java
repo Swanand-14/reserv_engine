@@ -1,5 +1,6 @@
 package com.reserv_engine.booking.service;
 
+import com.reserv_engine.booking.dto.response.ShowtimeBrowseResponse;
 import com.reserv_engine.booking.entity.Event;
 import com.reserv_engine.booking.entity.Hall;
 import com.reserv_engine.booking.entity.Showtime;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class ShowtimeService {
@@ -51,5 +53,17 @@ public class ShowtimeService {
         AvailabilityWindow window = availabilityWindowService.create(currentUserId, startTime, endTime);
 
         return showtimeRepository.save(new Showtime(event, hall, window, startTime, endTime));
+    }
+    @Transactional(readOnly = true)
+    public List<ShowtimeBrowseResponse> listMine(String eventId, String currentUserId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
+        if (!event.getOrganizer().getId().equals(currentUserId)) {
+            throw new AccessDeniedException("You do not organize this Event");
+        }
+
+        return showtimeRepository.findBrowseRowsByEventId(eventId).stream()
+                .map(ShowtimeBrowseResponse::from)
+                .toList();
     }
 }

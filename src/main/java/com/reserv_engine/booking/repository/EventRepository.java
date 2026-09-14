@@ -38,4 +38,12 @@ public interface EventRepository extends JpaRepository<Event, String> {
             """)
     Optional<EventBrowseRow> findBrowseRowByIdAndLifecycleStatus(
             @Param("eventId") String eventId, @Param("status") EventLifecycleStatus status);
+    @Query("""
+            SELECT e.id AS id, e.title AS title, e.lifecycleStatus AS lifecycleStatus, e.createdAt AS createdAt,
+                   (SELECT COUNT(st) FROM Showtime st WHERE st.event = e) AS showtimeCount
+            FROM Event e
+            WHERE e.organizer.id = :organizerId
+            ORDER BY e.createdAt DESC
+            """)
+    List<OrganizerEventRow> findOrganizerRowsByOrganizerId(@Param("organizerId") String organizerId);
 }

@@ -1,5 +1,6 @@
 package com.reserv_engine.booking.service;
 
+import com.reserv_engine.booking.dto.response.OrganizerEventResponse;
 import com.reserv_engine.booking.entity.Event;
 import com.reserv_engine.booking.repository.EventRepository;
 import com.reserv_engine.entity.User;
@@ -7,6 +8,8 @@ import com.reserv_engine.exception.ResourceNotFoundException;
 import com.reserv_engine.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 public class EventService {
@@ -24,5 +27,11 @@ public class EventService {
         User organizer = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + currentUserId));
         return eventRepository.save(new Event(organizer, title));
+    }
+    @Transactional(readOnly = true)
+    public List<OrganizerEventResponse> getMyEvents(String organizerId) {
+        return eventRepository.findOrganizerRowsByOrganizerId(organizerId).stream()
+                .map(OrganizerEventResponse::from)
+                .toList();
     }
 }

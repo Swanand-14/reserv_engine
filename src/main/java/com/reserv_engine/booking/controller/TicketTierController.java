@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/showtimes/{showtimeId}/ticket-tiers")
 public class TicketTierController {
@@ -29,5 +31,11 @@ public class TicketTierController {
         TicketTier tier = ticketTierService.create(
                 showtimeId, currentUserId, request.name(), request.price(), request.totalCapacity());
         return ResponseEntity.status(HttpStatus.CREATED).body(TicketTierResponse.from(tier));
+    }
+    @GetMapping
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public List<TicketTierResponse> list(@PathVariable String showtimeId) {
+        String currentUserId = SecurityUtils.currentUserId();
+        return ticketTierService.listForShowtime(showtimeId, currentUserId);
     }
 }

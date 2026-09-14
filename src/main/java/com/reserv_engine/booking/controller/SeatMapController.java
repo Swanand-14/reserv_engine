@@ -2,6 +2,7 @@ package com.reserv_engine.booking.controller;
 
 import com.reserv_engine.booking.dto.response.SeatMapEntryResponse;
 import com.reserv_engine.booking.service.SeatMapService;
+import com.reserv_engine.security.SecurityUtils;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +21,7 @@ public class SeatMapController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public List<SeatMapEntryResponse> getSeatMap(@PathVariable String showtimeId) {
-        return seatMapService.getSeatMap(showtimeId);
+        String currentUserId = SecurityUtils.currentUserId();
+        return seatMapService.getSeatMap(showtimeId,currentUserId);
     }
 }
