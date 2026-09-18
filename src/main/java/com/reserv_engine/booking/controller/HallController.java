@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/venues/{venueId}/halls")
 public class HallController {
@@ -28,5 +30,13 @@ public class HallController {
         String currentUserId = SecurityUtils.currentUserId();
         Hall hall = hallService.create(venueId, currentUserId, request.name());
         return ResponseEntity.status(HttpStatus.CREATED).body(HallResponse.from(hall));
+    }
+    @GetMapping
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public List<HallResponse> list(@PathVariable String venueId) {
+        String currentUserId = SecurityUtils.currentUserId();
+        return hallService.listByVenue(venueId, currentUserId).stream()
+                .map(HallResponse::from)
+                .toList();
     }
 }

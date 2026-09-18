@@ -9,6 +9,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 public class HallService {
 
@@ -30,5 +32,16 @@ public class HallService {
         }
 
         return hallRepository.save(new Hall(venue, name));
+    }
+    @Transactional(readOnly = true)
+    public List<Hall> listByVenue(String venueId, String currentUserId) {
+        Venue venue = venueRepository.findById(venueId)
+                .orElseThrow(() -> new ResourceNotFoundException("Venue not found: " + venueId));
+
+        if (!venue.getManager().getId().equals(currentUserId)) {
+            throw new AccessDeniedException("You do not manage this Venue");
+        }
+
+        return hallRepository.findByVenueId(venueId);
     }
 }

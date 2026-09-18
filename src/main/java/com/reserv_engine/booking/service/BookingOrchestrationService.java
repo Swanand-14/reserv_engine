@@ -1,40 +1,42 @@
 package com.reserv_engine.booking.service;
 
+import com.reserv_engine.booking.dto.response.BookingHoldResponse;
 import com.reserv_engine.booking.entity.SeatShowtimeAssignment;
+import com.reserv_engine.booking.entity.TicketTier;
 import com.reserv_engine.booking.repository.SeatShowtimeAssignmentRepository;
+import com.reserv_engine.booking.repository.TicketTierRepository;
 import com.reserv_engine.dto.CreateHoldRequest;
 import com.reserv_engine.dto.HoldLineRequest;
+import com.reserv_engine.dto.HoldLineResponse;
 import com.reserv_engine.dto.HoldResponse;
 import com.reserv_engine.exception.ResourceNotFoundException;
 import com.reserv_engine.service.HoldService;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
-/**
- * [Booking] The one place Booking actually reaches into the Engine's write
- * path. Translates a customer's chosen Seats for a Showtime into the
- * ResourceUnit ids the Engine already tracks, then delegates straight into
- * the existing, unmodified HoldService.createHold — no new concurrency
- * logic here. Every seat is UNIT_BASED (see TicketTierService), so each
- * line carries a resourceUnitId; quantity is left null, matching how
- * buildUnitLine ignores it for UNIT_BASED pools.
- */
 @Service
 public class BookingOrchestrationService {
 
     private final SeatShowtimeAssignmentRepository assignmentRepository;
+    private final TicketTierRepository ticketTierRepository;
     private final HoldService holdService;
 
     public BookingOrchestrationService(SeatShowtimeAssignmentRepository assignmentRepository,
+                                       TicketTierRepository ticketTierRepository,
                                        HoldService holdService) {
         this.assignmentRepository = assignmentRepository;
+        this.ticketTierRepository = ticketTierRepository;
         this.holdService = holdService;
     }
 
-    public HoldResponse bookSeats(String showtimeId, String currentUserId,
-                                  List<String> seatIds, String idempotencyKey) {
+    public BookingHoldResponse bookSeats(String showtimeId, String currentUserId,
+                                         List<String> seatIds, String idempotencyKey) {
         if (seatIds == null || seatIds.isEmpty()) {
             throw new IllegalArgumentException("seatIds must not be empty");
         }
@@ -42,15 +44,37 @@ public class BookingOrchestrationService {
             throw new IllegalArgumentException("seatIds contains duplicates");
         }
 
-        List<HoldLineRequest> lines = seatIds.stream()
+        List<ResolvedLine> resolved = seatIds.stream()
                 .map(seatId -> resolveLine(seatId, showtimeId))
                 .toList();
 
+        List<HoldLineRequest> lines = resolved.stream().map(ResolvedLine::holdLineRequest).toList();
+
         CreateHoldRequest request = new CreateHoldRequest(currentUserId, idempotencyKey, lines);
-        return holdService.createHold(request);
+        HoldResponse holdResponse = holdService.createHold(request);
+
+        return toBookingHoldResponse(holdResponse, resolved);
     }
 
-    private HoldLineRequest resolveLine(String seatId, String showtimeId) {
+    private BookingHoldResponse toBookingHoldResponse(HoldResponse holdResponse, List<ResolvedLine> resolved) {
+        Map<String, ResolvedLine> byResourceUnitId = new HashMap<>();
+        for (ResolvedLine r : resolved) {
+            byResourceUnitId.put(r.resourceUnitId(), r);
+        }
+
+        BigDecimal totalPrice = BigDecimal.ZERO;
+        List<BookingHoldResponse.Line> bookingLines = new ArrayList<>();
+        for (HoldLineResponse line : holdResponse.lines()) {
+            ResolvedLine r = byResourceUnitId.get(line.resourceUnitId());
+            bookingLines.add(new BookingHoldResponse.Line(line.id(), r.seatLabel(), r.tierName(), r.price()));
+            totalPrice = totalPrice.add(r.price());
+        }
+
+        return new BookingHoldResponse(holdResponse.id(), holdResponse.status(), holdResponse.expiresAt(),
+                bookingLines, totalPrice);
+    }
+
+    private ResolvedLine resolveLine(String seatId, String showtimeId) {
         SeatShowtimeAssignment assignment = assignmentRepository
                 .findBySeatIdAndShowtimeIdWithResourceUnitAndPool(seatId, showtimeId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -59,6 +83,15 @@ public class BookingOrchestrationService {
         String resourcePoolId = assignment.getResourceUnit().getResourcePool().getId();
         String resourceUnitId = assignment.getResourceUnit().getId();
 
-        return new HoldLineRequest(resourcePoolId, resourceUnitId, null);
+        TicketTier tier = ticketTierRepository.findByResourcePoolId(resourcePoolId)
+                .orElseThrow(() -> new ResourceNotFoundException("TicketTier not found for pool: " + resourcePoolId));
+
+        HoldLineRequest holdLineRequest = new HoldLineRequest(resourcePoolId, resourceUnitId, null);
+
+        return new ResolvedLine(holdLineRequest, resourceUnitId, assignment.getSeat().getLabel(),
+                tier.getName(), tier.getPrice());
     }
+
+    private record ResolvedLine(HoldLineRequest holdLineRequest, String resourceUnitId,
+                                String seatLabel, String tierName, BigDecimal price) {}
 }

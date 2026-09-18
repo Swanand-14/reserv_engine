@@ -1,6 +1,7 @@
 package com.reserv_engine.booking.controller;
 
 import com.reserv_engine.booking.dto.request.CreateBookingRequest;
+import com.reserv_engine.booking.dto.response.BookingHoldResponse;
 import com.reserv_engine.booking.service.BookingOrchestrationService;
 import com.reserv_engine.dto.HoldResponse;
 import com.reserv_engine.security.SecurityUtils;
@@ -22,7 +23,7 @@ public class BookingOrchestrationController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('CUSTOMER')")
-    public HoldResponse book(@PathVariable String showtimeId, @Valid @RequestBody CreateBookingRequest request) {
+    public BookingHoldResponse book(@PathVariable String showtimeId, @Valid @RequestBody CreateBookingRequest request) {
         String currentUserId = SecurityUtils.currentUserId();
         return bookingOrchestrationService.bookSeats(
                 showtimeId, currentUserId, request.seatIds(), request.idempotencyKey());

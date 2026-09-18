@@ -88,7 +88,7 @@ public class HoldCancelService {
 
     private HoldResponse toResponse(Hold hold) {
         var lines = hold.getHoldLines().stream()
-                .map(line -> new HoldLineResponse(
+                .map(line -> new HoldLineResponse(line.getId(),
                         line.getResourcePool().getId(),
                         line.getResourceUnit() != null ? line.getResourceUnit().getId() : null,
                         line.getQuantity()

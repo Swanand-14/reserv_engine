@@ -19,6 +19,7 @@ public interface SeatShowtimeAssignmentRepository extends JpaRepository<SeatShow
             SELECT ssa FROM SeatShowtimeAssignment ssa
             JOIN FETCH ssa.resourceUnit ru
             JOIN FETCH ru.resourcePool
+            JOIN FETCH ssa.seat
             WHERE ssa.seat.id = :seatId AND ssa.showtime.id = :showtimeId
             """)
     Optional<SeatShowtimeAssignment> findBySeatIdAndShowtimeIdWithResourceUnitAndPool(
@@ -39,4 +40,7 @@ public interface SeatShowtimeAssignmentRepository extends JpaRepository<SeatShow
             ORDER BY r.confirmedAt DESC
             """)
     List<MyReservationRow> findMyReservationRows(@Param("holderId") String holderId);
+
+
+
 }
