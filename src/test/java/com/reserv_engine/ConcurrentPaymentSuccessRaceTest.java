@@ -74,7 +74,7 @@ class ConcurrentPaymentSuccessRaceTest extends AbstractIntegrationTest {
                 """.formatted(holdId, idempotencyKey);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(testToken);
+        headers.add(HttpHeaders.COOKIE, testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/payment-attempts",
                 new HttpEntity<>(body, headers), String.class);

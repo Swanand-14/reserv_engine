@@ -148,7 +148,7 @@ class ReservationCancelRaceTest extends AbstractIntegrationTest {
 
     private ResponseEntity<String> callCancel(String reservationId) {
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(testToken);
+        headers.add(HttpHeaders.COOKIE, testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/reservations/" + reservationId + "/cancel",
                 new HttpEntity<>(headers), String.class);

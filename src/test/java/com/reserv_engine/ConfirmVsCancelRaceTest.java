@@ -96,7 +96,7 @@ class ConfirmVsCancelRaceTest extends AbstractIntegrationTest {
                 """.formatted(hold.holdId(), hold.holdLineId());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(testToken);
+        headers.add(HttpHeaders.COOKIE, testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/reservations/confirm",
                 new HttpEntity<>(body, headers), String.class);
@@ -104,7 +104,7 @@ class ConfirmVsCancelRaceTest extends AbstractIntegrationTest {
 
     private ResponseEntity<String> callCancel(SeededHold hold) {
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(testToken);
+        headers.add(HttpHeaders.COOKIE, testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/holds/" + hold.holdId() + "/cancel",
                 new HttpEntity<>(headers), String.class);

@@ -101,7 +101,7 @@ class CounterBasedHoldConcurrencyTest extends AbstractIntegrationTest {
                             """.formatted( poolId, idx, poolId);
 
                     HttpHeaders headers = new HttpHeaders();
-                    headers.setBearerAuth(testToken);
+                    headers.add(HttpHeaders.COOKIE, testToken);
                     headers.setContentType(MediaType.APPLICATION_JSON);
 
                     ResponseEntity<String> response = restTemplate.postForEntity(

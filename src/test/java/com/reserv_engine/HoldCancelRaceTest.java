@@ -151,7 +151,7 @@ class HoldCancelRaceTest extends AbstractIntegrationTest {
 
     private ResponseEntity<String> callCancel(String holdId) {
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(testToken);
+        headers.add(HttpHeaders.COOKIE, testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/holds/" + holdId + "/cancel",
                 new HttpEntity<>(headers), String.class);

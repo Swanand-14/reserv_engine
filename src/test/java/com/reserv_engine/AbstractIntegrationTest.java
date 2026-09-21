@@ -61,6 +61,15 @@ public abstract class AbstractIntegrationTest {
     protected String baseUrl() {
         return "http://localhost:" + port;
     }
+    private String extractSessionCookie(ResponseEntity<String> response) {
+                String setCookie = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+               if (setCookie == null) {
+                        throw new IllegalStateException("Login response had no Set-Cookie header");
+                    }
+              // Set-Cookie carries attributes (Path, HttpOnly, SameSite...) that must
+                      // NOT be replayed in a request's Cookie header — only "name=value".
+                               return setCookie.split(";", 2)[0];
+            }
 
     protected String signupAndLogin(String email, String password) {
         String signupBody = """
@@ -75,10 +84,8 @@ public abstract class AbstractIntegrationTest {
 
         // token is the first field in LoginResponse — cheap extraction, no need
         // to pull in the DTO class here and create a test->main dependency
-        String body = loginResponse.getBody();
-        int start = body.indexOf("\"token\":\"") + 9;
-        int end = body.indexOf("\"", start);
-        return body.substring(start, end);
+        return extractSessionCookie(loginResponse);
+
     }
 
     protected String login(String email, String password) {
@@ -89,15 +96,12 @@ public abstract class AbstractIntegrationTest {
         headers.setContentType(MediaType.APPLICATION_JSON);
         ResponseEntity<String> response = restTemplate.postForEntity(
                 baseUrl() + "/auth/login", new HttpEntity<>(body, headers), String.class);
-        String responseBody = response.getBody();
-        int start = responseBody.indexOf("\"token\":\"") + 9;
-        int end = responseBody.indexOf("\"", start);
-        return responseBody.substring(start, end);
+        return extractSessionCookie(response);
     }
 
     protected String currentUserId(String token) {
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
+        headers.add(HttpHeaders.COOKIE, token);
         ResponseEntity<String> meResponse = restTemplate.exchange(
                 baseUrl() + "/users/me", org.springframework.http.HttpMethod.GET,
                 new HttpEntity<>(headers), String.class);
@@ -110,7 +114,7 @@ public abstract class AbstractIntegrationTest {
     protected String grantOrganizerRole(String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(token);
+        headers.add(HttpHeaders.COOKIE, token);
         restTemplate.postForEntity(baseUrl() + "/users/me/roles",
                 new HttpEntity<>("{\"role\":\"ORGANIZER\"}", headers), String.class);
         // caller must re-login after this to get a token with the updated roles claim

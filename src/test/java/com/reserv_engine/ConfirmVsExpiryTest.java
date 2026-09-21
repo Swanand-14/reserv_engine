@@ -113,7 +113,7 @@ class ConfirmVsExpiryTest extends AbstractIntegrationTest {
                 """.formatted(hold.holdId(), hold.holdLineId());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(testToken);
+        headers.add(HttpHeaders.COOKIE, testToken);
         return restTemplate.postForEntity(
                 baseUrl() + "/api/v1/reservations/confirm",
                 new HttpEntity<>(body, headers), String.class);

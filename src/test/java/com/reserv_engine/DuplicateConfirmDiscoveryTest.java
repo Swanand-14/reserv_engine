@@ -140,7 +140,7 @@ class DuplicateConfirmDiscoveryTest extends AbstractIntegrationTest {
 
                     HttpHeaders headers = new HttpHeaders();
                     headers.setContentType(MediaType.APPLICATION_JSON);
-                    headers.setBearerAuth(testToken);
+                    headers.add(HttpHeaders.COOKIE, testToken);
                     ResponseEntity<String> response = restTemplate.postForEntity(
                             baseUrl() + "/api/v1/reservations/confirm",
                             new HttpEntity<>(body, headers), String.class);

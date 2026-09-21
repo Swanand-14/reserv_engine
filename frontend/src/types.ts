@@ -6,8 +6,3 @@ export interface UserResponse {
   roles: Role[];
   createdAt: string; // LocalDateTime serializes as ISO string over JSON
 }
-
-export interface LoginResponse {
-  token: string;
-  user: UserResponse;
-}
