@@ -9,8 +9,6 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { BrowsePage } from "./pages/customer/BrowsePage";
 import { VenuesPage } from "./pages/organizer/VenuesPage";
 import { EventsPage } from "./pages/organizer/EventsPage";
-import { ShowtimeCreatePage } from "./pages/organizer/ShowtimeCreatePage";
-import { ShowtimeSetupPage } from "./pages/organizer/ShowtimeSetupPage";
 
 // Authenticated users land on Browse; everyone else lands on Login.
 // Used for both "/" and any unmatched path.
@@ -39,14 +37,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-  path="/organizer/showtimes/new"
-  element={
-    <ProtectedRoute>
-      <ShowtimeCreatePage />
-    </ProtectedRoute>
-  }
-/>
 
           <Route
             path="/dashboard"
@@ -72,14 +62,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-  path="/organizer/events/:eventId/showtimes/:showtimeId/setup"
-  element={
-    <ProtectedRoute>
-      <ShowtimeSetupPage />
-    </ProtectedRoute>
-  }
-/>
 
           <Route path="*" element={<RootRedirect />} />
         </Routes>

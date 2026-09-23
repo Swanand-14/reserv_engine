@@ -23,20 +23,11 @@ export function DashboardPage() {
               <ul>
                 <li><Link to="/organizer/venues">Venues</Link></li>
                 <li><Link to="/organizer/events">Events</Link></li>
-                <li><Link to="/organizer/showtimes/new">Create Showtime</Link></li>
               </ul>
             </div>
           </div>
         ) : (
-          <div className="role-grid">
-            <div className="role-card">
-              <h3>Organizer</h3>
-              <ul>
-                <li><Link to="/browse">Browse Events</Link></li>
-                
-              </ul>
-            </div>
-          </div>
+          <p className="muted">No organizer access yet.</p>
         )}
       </div>
     </div>

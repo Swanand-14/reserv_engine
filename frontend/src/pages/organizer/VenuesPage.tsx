@@ -1,81 +1,51 @@
-import { useState, useEffect, type FormEvent } from "react";
-import { createVenue, listMyVenues, type VenueResponse } from "../../api/venue";
+import { useState, useEffect } from "react";
+import { listMyVenues, type VenueResponse } from "../../api/venue";
 import { ApiError } from "../../api/client";
 
 export function VenuesPage() {
   const [venues, setVenues] = useState<VenueResponse[]>([]);
-  const [venuesLoading, setVenuesLoading] = useState(true);
-  const [venuesError, setVenuesError] = useState<string | null>(null);
-
-  const [name, setName] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadVenues();
   }, []);
 
   async function loadVenues() {
-    setVenuesLoading(true);
-    setVenuesError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await listMyVenues();
       setVenues(data);
     } catch (err) {
-      setVenuesError(err instanceof ApiError ? err.message : "Failed to load venues");
+      setError(err instanceof ApiError ? err.message : "Failed to load venues");
     } finally {
-      setVenuesLoading(false);
-    }
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setFormError(null);
-    setSubmitting(true);
-    try {
-      await createVenue(name);
-      setName("");
-      await loadVenues(); // re-fetch so the list reflects the real backend state, not an optimistic guess
-    } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Failed to create venue");
-    } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   }
 
   return (
     <div className="page">
       <h1>Venues</h1>
-
-      <form className="card form" onSubmit={handleSubmit}>
-        <label>
-          Venue name
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </label>
-        {formError && <p className="error" role="alert">{formError}</p>}
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Creating..." : "Create venue"}
-        </button>
-      </form>
+      <p className="muted">
+        Venues are seeded for this demo — pick one of these when setting up a showtime.
+      </p>
 
       <div className="card">
-        <h2>Your venues</h2>
-        {venuesLoading && <p className="muted">Loading...</p>}
-        {venuesError && <p className="error" role="alert">{venuesError}</p>}
-        {!venuesLoading && !venuesError && venues.length === 0 && (
-          <p className="muted">No venues yet — create one above.</p>
+        {loading && <p className="muted">Loading...</p>}
+        {error && <p className="error" role="alert">{error}</p>}
+        {!loading && !error && venues.length === 0 && (
+          <p className="muted">No venues found for your account.</p>
         )}
         {venues.length > 0 && (
           <ul className="list">
             {venues.map((v) => (
               <li key={v.id}>
                 <strong>{v.name}</strong>
-                <span className="muted"> — {v.id}</span>
+                <div className="muted">
+                  {v.hallCount} {v.hallCount === 1 ? "hall" : "halls"} · {v.totalSeatCount}{" "}
+                  seats total · added {new Date(v.createdAt).toLocaleDateString()}
+                </div>
               </li>
             ))}
           </ul>
