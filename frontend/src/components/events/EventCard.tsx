@@ -1,15 +1,13 @@
 import { Link } from "react-router-dom";
 import type { EventBrowseResponse } from "../../types/event";
 import { posterArtFor } from "../../utils/posterArt";
-
+import { formatInr } from "../../utils/currency";
 export function EventCard({ event }: { event: EventBrowseResponse }) {
   const { hue, hueAlt } = posterArtFor(event.title);
   const artStyle = {
     background: `linear-gradient(135deg, hsl(${hue} 68% 20%), hsl(${hueAlt} 55% 11%))`,
   };
-  const priceFormatted = new Intl.NumberFormat("en-IN", {
-    maximumFractionDigits: 0,
-  }).format(event.startingPrice);
+  const priceFormatted = formatInr(event.startingPrice);
 
   return (
     <Link to={`/events/${event.id}`} className="event-card">

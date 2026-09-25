@@ -44,3 +44,6 @@ export function createShowtime(
 export function listMyShowtimes(eventId: string): Promise<ShowtimeBrowseResponse[]> {
   return apiFetch<ShowtimeBrowseResponse[]>(`/api/v1/events/${eventId}/showtimes/mine`);
 }
+export function listShowtimesForEvent(eventId: string): Promise<ShowtimeBrowseResponse[]> {
+  return apiFetch<ShowtimeBrowseResponse[]>(`/api/v1/events/${eventId}/showtimes`);
+}

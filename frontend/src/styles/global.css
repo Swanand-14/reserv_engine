@@ -548,3 +548,211 @@ nav.top-bar {
 .seat-btn:disabled {
   opacity: 0.5;
 }
+
+.event-hero {
+  position: relative;
+  padding: var(--spacing-5) 0;
+  overflow: hidden;
+}
+.event-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 3px 3px;
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+}
+.event-hero__inner {
+  position: relative;
+}
+.event-hero__title {
+  font-size: 3rem;
+  max-width: 20ch;
+  margin-bottom: 0.5rem;
+}
+.event-hero__meta {
+  display: flex;
+  gap: 0.5rem;
+  color: rgba(242, 240, 234, 0.8);
+  font-size: 1rem;
+}
+
+/* --- Showtimes, grouped by date --- */
+.showtime-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-2);
+  padding-bottom: var(--spacing-5);
+}
+.showtime-group__label {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+.showtime-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.showtime-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  min-width: 160px;
+  text-align: left;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+.showtime-pill:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+.showtime-pill--selected {
+  border-color: var(--color-primary);
+  background: var(--color-surface-raised);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+.showtime-pill__time {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.showtime-pill__venue {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+.showtime-pill__price {
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-top: 0.15rem;
+}
+
+/* --- Sticky selection bar --- */
+.selection-bar {
+  position: sticky;
+  bottom: 0;
+  background: rgba(10, 12, 16, 0.92);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--color-border);
+  padding: var(--spacing-2) 0;
+}
+.selection-bar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+}
+
+/* --- Seat map (customer) --- */
+.seat-map-page {
+  padding-bottom: 6rem; /* clears the sticky selection bar */
+}
+.seat-map-header {
+  text-align: center;
+  margin-bottom: var(--spacing-3);
+}
+
+.screen {
+  max-width: 640px;
+  margin: 0 auto calc(var(--spacing-4) + var(--spacing-1));
+}
+.screen__curve {
+  height: 6px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+  box-shadow: 0 18px 40px -10px rgba(232, 169, 74, 0.55);
+  opacity: 0.85;
+}
+.screen__label {
+  text-align: center;
+  margin-top: 0.6rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.35em;
+  color: var(--color-text-faint);
+  text-transform: uppercase;
+}
+
+.seat-picker--map {
+  align-items: center;
+  margin-bottom: var(--spacing-3);
+}
+.seat-picker--map .seat-picker__row {
+  justify-content: center;
+}
+
+/* Status-driven seat colors — green available, red reserved/held, gold
+   selected overrides both. Unassigned (no tier) reads as a structural gap,
+   not a color the customer needs to parse as an option. */
+.seat-btn--available {
+  border-color: rgba(111, 191, 139, 0.55);
+  color: var(--color-success);
+}
+.seat-btn--available:hover:not(:disabled) {
+  background: var(--color-success-bg);
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+.seat-btn--unavailable {
+  border-color: rgba(228, 98, 111, 0.35);
+  background: rgba(228, 98, 111, 0.08);
+  color: rgba(228, 98, 111, 0.55);
+  cursor: not-allowed;
+}
+.seat-btn--unassigned {
+  border-color: var(--color-border);
+  color: var(--color-text-faint);
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.seat-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) 0;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  display: inline-block;
+}
+.legend-swatch--available {
+  border-color: rgba(111, 191, 139, 0.55);
+  background: transparent;
+}
+.legend-swatch--selected {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.legend-swatch--unavailable {
+  background: rgba(228, 98, 111, 0.18);
+  border-color: rgba(228, 98, 111, 0.5);
+}
+
+.selection-bar__total {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--color-primary);
+  font-size: 1.1rem;
+}

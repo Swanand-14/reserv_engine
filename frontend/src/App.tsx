@@ -11,6 +11,8 @@ import { VenuesPage } from "./pages/organizer/VenuesPage";
 import { EventsPage } from "./pages/organizer/EventsPage";
 import { ShowtimeCreatePage } from "./pages/organizer/ShowtimeCreatePage";
 import { ShowtimeSetupPage } from "./pages/organizer/ShowtimeSetupPage";
+import { EventDetailPage } from "./pages/customer/EventDetailPage";
+import { SeatMapPage } from "./pages/customer/SeatMapPage";
 
 // Authenticated users land on Browse; everyone else lands on Login.
 // Used for both "/" and any unmatched path.
@@ -73,10 +75,30 @@ function App() {
             }
           />
           <Route
+  path="/events/:eventId"
+  element={
+    <ProtectedRoute>
+      <AppLayout>
+        <EventDetailPage />
+      </AppLayout>
+    </ProtectedRoute>
+  }
+/>
+          <Route
   path="/organizer/events/:eventId/showtimes/:showtimeId/setup"
   element={
     <ProtectedRoute>
       <ShowtimeSetupPage />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/events/:eventId/showtimes/:showtimeId/seats"
+  element={
+    <ProtectedRoute>
+      <AppLayout>
+        <SeatMapPage />
+      </AppLayout>
     </ProtectedRoute>
   }
 />
