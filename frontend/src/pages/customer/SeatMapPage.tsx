@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation,useNavigate } from "react-router-dom";
 import { getSeatMap, type SeatMapEntryResponse } from "../../api/seatMap";
 import { groupByRow } from "../../utils/seatLabel";
 import { formatInr } from "../../utils/currency";
 import { LoadingState } from "../../components/ui/LoadingState";
 import { ErrorState } from "../../components/ui/ErrorState";
+import { createBookingHold } from "../../api/booking";
+import { ApiError } from "../../api/client";
 
 interface LocationState {
   eventTitle?: string;
@@ -21,7 +23,7 @@ function seatStatusClass(seat: SeatMapEntryResponse, isSelected: boolean): strin
 }
 
 export function SeatMapPage() {
-  const { showtimeId } = useParams<{ showtimeId: string }>();
+ const { eventId, showtimeId } = useParams<{ eventId: string; showtimeId: string }>();
   const location = useLocation();
   const context = (location.state ?? {}) as LocationState;
 
@@ -29,6 +31,34 @@ export function SeatMapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [selectedSeatIds, setSelectedSeatIds] = useState<Set<string>>(new Set());
+  const [proceedError, setProceedError] = useState<string | null>(null);
+  const [proceeding, setProceeding] = useState(false);
+  const navigate = useNavigate();
+  async function handleProceed() {
+  if (!showtimeId || selectedSeats.length === 0) return;
+  setProceedError(null);
+  setProceeding(true);
+  try {
+    const hold = await createBookingHold(showtimeId, selectedSeats.map((s) => s.seatId));
+    navigate(`/holds/${hold.holdId}/checkout`, {
+      state: {
+        hold, eventId, showtimeId,
+        eventTitle: context.eventTitle, venueName: context.venueName,
+        hallName: context.hallName, startTime: context.startTime,
+      },
+    });
+  } catch (err) {
+    setProceedError(
+      err instanceof ApiError
+        ? err.message || "One of the selected seats was just taken — refresh and try again."
+        : "Failed to hold those seats"
+    );
+    await load(); // seats may have been taken in the meantime — refresh statuses
+  } finally {
+    setProceeding(false);
+  }
+}
+
 
   const load = useCallback(async () => {
     if (!showtimeId) return;
@@ -166,9 +196,9 @@ export function SeatMapPage() {
               </>
             )}
           </div>
-          <button disabled={selectedSeats.length === 0} title="Hold & payment is coming next">
-            Proceed
-          </button>
+          <button onClick={handleProceed} disabled={selectedSeats.length === 0 || proceeding}>
+  {proceeding ? "Holding seats..." : "Proceed"}
+</button>
         </div>
       </div>
     </div>

@@ -13,6 +13,8 @@ import { ShowtimeCreatePage } from "./pages/organizer/ShowtimeCreatePage";
 import { ShowtimeSetupPage } from "./pages/organizer/ShowtimeSetupPage";
 import { EventDetailPage } from "./pages/customer/EventDetailPage";
 import { SeatMapPage } from "./pages/customer/SeatMapPage";
+import { CheckoutPage } from "./pages/customer/CheckoutPage";
+import { ConfirmationPage } from "./pages/customer/ConfirmationPage";
 
 // Authenticated users land on Browse; everyone else lands on Login.
 // Used for both "/" and any unmatched path.
@@ -101,6 +103,14 @@ function App() {
       </AppLayout>
     </ProtectedRoute>
   }
+/>
+<Route
+  path="/holds/:holdId/checkout"
+  element={<ProtectedRoute><AppLayout><CheckoutPage /></AppLayout></ProtectedRoute>}
+/>
+<Route
+  path="/reservations/:reservationId/confirmation"
+  element={<ProtectedRoute><AppLayout><ConfirmationPage /></AppLayout></ProtectedRoute>}
 />
 
           <Route path="*" element={<RootRedirect />} />
