@@ -58,3 +58,8 @@ export interface MyReservationResponse {
 export function listMyReservations(): Promise<MyReservationResponse[]> {
   return apiFetch<MyReservationResponse[]>("/api/v1/my-reservations");
 }
+export function cancelReservation(reservationId: string): Promise<ReservationResponse> {
+  return apiFetch<ReservationResponse>(`/api/v1/reservations/${reservationId}/cancel`, {
+    method: "POST",
+  });
+}

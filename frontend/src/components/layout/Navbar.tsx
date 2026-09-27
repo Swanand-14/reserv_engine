@@ -15,6 +15,9 @@ export function Navbar() {
         <NavLink to="/browse" className={({ isActive }) => (isActive ? "active" : "")}>
           Now Showing
         </NavLink>
+        <NavLink to="/my-reservations" className={({ isActive }) => (isActive ? "active" : "")}>
+  My Reservations
+</NavLink>
         {/* My Reservations link is added once that page exists (next phase) */}
         {isOrganizer && (
           <NavLink to="/dashboard" className={({ isActive }) => (isActive ? "active" : "")}>

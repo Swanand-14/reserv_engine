@@ -7,7 +7,7 @@ import {
   type ShowtimeBrowseResponse,
 } from "../../api/showtimes";
 import { ApiError } from "../../api/client";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link ,useLocation} from "react-router-dom";
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -18,10 +18,12 @@ function formatDateTime(iso: string): string {
 
 export function ShowtimeCreatePage() {
   // Events (picker)
+  const location = useLocation();
+  const presetEventId = (location.state as { presetEventId?: string } | null)?.presetEventId;
   const [events, setEvents] = useState<OrganizerEventResponse[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventsError, setEventsError] = useState<string | null>(null);
-  const [eventId, setEventId] = useState("");
+  const [eventId, setEventId] = useState(presetEventId ?? "");
 
   // Existing showtimes for the selected event
   const [existing, setExisting] = useState<ShowtimeBrowseResponse[]>([]);

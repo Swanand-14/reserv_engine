@@ -15,6 +15,7 @@ import { EventDetailPage } from "./pages/customer/EventDetailPage";
 import { SeatMapPage } from "./pages/customer/SeatMapPage";
 import { CheckoutPage } from "./pages/customer/CheckoutPage";
 import { ConfirmationPage } from "./pages/customer/ConfirmationPage";
+import { MyReservationsPage } from "./pages/customer/MyReservationsPage";
 
 // Authenticated users land on Browse; everyone else lands on Login.
 // Used for both "/" and any unmatched path.
@@ -100,6 +101,16 @@ function App() {
     <ProtectedRoute>
       <AppLayout>
         <SeatMapPage />
+      </AppLayout>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/my-reservations"
+  element={
+    <ProtectedRoute>
+      <AppLayout>
+        <MyReservationsPage />
       </AppLayout>
     </ProtectedRoute>
   }
