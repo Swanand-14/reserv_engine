@@ -9,6 +9,16 @@ export class ApiError extends Error {
   }
 }
 
+function extractErrorMessage(body: string): string {
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed && typeof parsed.message === "string") return parsed.message;
+  } catch {
+    // not JSON — use the body as-is
+  }
+  return body;
+}
+
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
@@ -24,7 +34,7 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new ApiError(response.status, text || response.statusText);
+    throw new ApiError(response.status, extractErrorMessage(text) || response.statusText);
   }
 
   const text = await response.text();

@@ -808,3 +808,34 @@ nav.top-bar {
   background: rgba(94, 200, 192, 0.14);
   color: var(--color-cool);
 }
+/* .page-wide's own vertical padding would make the pinned bar ~250px tall */
+.selection-bar .page-wide {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.seat-map-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  max-width: 640px;
+  margin: 0 auto var(--spacing-3);
+  padding: 0.8rem 1rem;
+  background: var(--color-danger-bg);
+  border: 1px solid rgba(228, 98, 111, 0.5);
+  border-radius: var(--radius);
+  color: #f3aab0;
+  font-size: 0.92rem;
+}
+.seat-map-alert__close {
+  background: transparent;
+  color: inherit;
+  padding: 0 0.25rem;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+.seat-map-alert__close:hover:not(:disabled) {
+  background: transparent;
+  color: #fff;
+}

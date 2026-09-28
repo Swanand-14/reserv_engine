@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams ,useNavigate} from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { getEventDetail } from "../../api/events";
 import { listShowtimesForEvent, type ShowtimeBrowseResponse } from "../../api/showtimes";
 import type { EventBrowseResponse } from "../../types/event";
@@ -8,7 +8,6 @@ import { formatInr } from "../../utils/currency";
 import { LoadingState } from "../../components/ui/LoadingState";
 import { ErrorState } from "../../components/ui/ErrorState";
 import { EmptyState } from "../../components/ui/EmptyState";
-
 
 interface DateGroup {
   dateKey: string;
@@ -47,13 +46,13 @@ function formatTime(iso: string): string {
 
 export function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>();
+  const navigate = useNavigate();
 
   const [event, setEvent] = useState<EventBrowseResponse | null>(null);
   const [showtimes, setShowtimes] = useState<ShowtimeBrowseResponse[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     if (!eventId) return;
@@ -91,8 +90,13 @@ export function EventDetailPage() {
   const heroStyle = {
     background: `linear-gradient(135deg, hsl(${hue} 68% 22%), hsl(${hueAlt} 55% 10%))`,
   };
-  const dateGroups = showtimes ? groupByDate(showtimes) : [];
-  const selectedShowtime = showtimes?.find((s) => s.id === selectedId) ?? null;
+  // The backend doesn't filter by time at all — GET .../showtimes returns
+  // every showtime ever created, past included. Hide anything that's
+  // already started; ticket sales close at showtime, not at end time.
+  const upcomingShowtimes = (showtimes ?? []).filter((s) => new Date(s.startTime).getTime() > Date.now());
+  const dateGroups = groupByDate(upcomingShowtimes);
+  const selectedShowtime = upcomingShowtimes.find((s) => s.id === selectedId) ?? null;
+  const hadAnyShowtimes = (showtimes ?? []).length > 0;
 
   return (
     <div>
@@ -101,7 +105,7 @@ export function EventDetailPage() {
           <h1 className="event-hero__title">{event.title}</h1>
           <div className="event-hero__meta">
             <span>
-              {event.showtimeCount} {event.showtimeCount === 1 ? "showtime" : "showtimes"}
+              {upcomingShowtimes.length} {upcomingShowtimes.length === 1 ? "showtime" : "showtimes"}
             </span>
             <span>·</span>
             <span>from &#8377;{formatInr(event.startingPrice)}</span>
@@ -115,7 +119,11 @@ export function EventDetailPage() {
         {dateGroups.length === 0 && (
           <EmptyState
             title="No showtimes scheduled"
-            message="This event doesn't have any live showtimes right now — check back soon."
+            message={
+              hadAnyShowtimes
+                ? "All showtimes for this event have already ended."
+                : "This event doesn't have any live showtimes right now — check back soon."
+            }
           />
         )}
 
@@ -157,20 +165,20 @@ export function EventDetailPage() {
                 · {selectedShowtime.venueName} · {selectedShowtime.hallName}
               </span>
             </div>
-<button
-  onClick={() =>
-    navigate(`/events/${eventId}/showtimes/${selectedShowtime.id}/seats`, {
-      state: {
-        eventTitle: event.title,
-        venueName: selectedShowtime.venueName,
-        hallName: selectedShowtime.hallName,
-        startTime: selectedShowtime.startTime,
-      },
-    })
-  }
->
-  Continue to seat selection
-</button>
+            <button
+              onClick={() =>
+                navigate(`/events/${eventId}/showtimes/${selectedShowtime.id}/seats`, {
+                  state: {
+                    eventTitle: event.title,
+                    venueName: selectedShowtime.venueName,
+                    hallName: selectedShowtime.hallName,
+                    startTime: selectedShowtime.startTime,
+                  },
+                })
+              }
+            >
+              Continue to seat selection
+            </button>
           </div>
         </div>
       )}

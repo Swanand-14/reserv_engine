@@ -18,7 +18,7 @@ interface LocationState {
 }
 
 export function ShowtimeSetupPage() {
-  const { eventId, showtimeId } = useParams<{ eventId: string; showtimeId: string }>();
+  const { showtimeId } = useParams<{ eventId: string; showtimeId: string }>();
   const location = useLocation();
   const context = (location.state ?? {}) as LocationState;
 
@@ -45,9 +45,7 @@ export function ShowtimeSetupPage() {
   const [assignError, setAssignError] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
 
-  const [publishError, setPublishError] = useState<string | null>(null);
-  const [publishing, setPublishing] = useState(false);
-  const [publishedStatus, setPublishedStatus] = useState<string | null>(null);
+  
 
   const loadTiers = useCallback(async () => {
     if (!showtimeId) return;
@@ -150,19 +148,7 @@ export function ShowtimeSetupPage() {
     }
   }
 
-  async function handlePublish() {
-    setPublishError(null);
-    if (!eventId) return;
-    setPublishing(true);
-    try {
-      const result = await publishEvent(eventId);
-      setPublishedStatus(result.lifecycleStatus);
-    } catch (err) {
-      setPublishError(err instanceof ApiError ? err.message : "Failed to publish event");
-    } finally {
-      setPublishing(false);
-    }
-  }
+  
 
   const unassignedSeats = seatMap.filter((s) => s.tierName === null);
   const rows = groupByRow(unassignedSeats);
@@ -343,18 +329,9 @@ export function ShowtimeSetupPage() {
             publish; unassigned seats just won't be bookable.
           </p>
         )}
-        {publishedStatus ? (
-          <p className="muted" style={{ color: "var(--color-success)" }}>
-            Published — this event is now live at <Link to="/browse">Now Showing</Link>.
-          </p>
-        ) : (
-          <>
-            <button onClick={handlePublish} disabled={publishing || tiers.length === 0}>
-              {publishing ? "Publishing..." : "Publish event"}
-            </button>
-            {publishError && <p className="error" role="alert" style={{ marginTop: "0.5rem" }}>{publishError}</p>}
-          </>
-        )}
+         <p className="muted">
+    Done configuring? Publish the event from <Link to="/organizer/events">Events</Link>.
+  </p>
       </div>
     </div>
   );

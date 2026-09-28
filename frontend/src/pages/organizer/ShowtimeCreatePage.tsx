@@ -9,6 +9,14 @@ import {
 import { ApiError } from "../../api/client";
 import { useNavigate, Link ,useLocation} from "react-router-dom";
 
+function toLocalDatetimeValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+const MIN_DURATION_MINUTES = 15;
+const MAX_DURATION_MINUTES = 12 * 60;
+
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     dateStyle: "medium",
@@ -130,10 +138,40 @@ const navigate = useNavigate();
       setFormError("Fill in every field before creating the showtime.");
       return;
     }
+     const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (start.getTime() < Date.now()) {
+    setFormError("Start time can't be in the past.");
+    return;
+  }
     if (endTime <= startTime) {
       setFormError("End time has to be after the start time.");
       return;
     }
+
+    const durationMinutes = (end.getTime() - start.getTime()) / 60000;
+  if (durationMinutes < MIN_DURATION_MINUTES) {
+    setFormError(`Showtime must be at least ${MIN_DURATION_MINUTES} minutes long.`);
+    return;
+  }
+  if (durationMinutes > MAX_DURATION_MINUTES) {
+    setFormError("That's over 12 hours long — double check the dates before continuing.");
+    return;
+  }
+  const selectedHallName = halls.find((h) => h.id === hallId)?.name;
+  const selectedVenueName = venues.find((v) => v.id === venueId)?.name;
+  const overlap = existing.find((s) => {
+    if (s.hallName !== selectedHallName || s.venueName !== selectedVenueName) return false;
+    const exStart = new Date(s.startTime);
+    const exEnd = new Date(s.endTime);
+    return start < exEnd && end > exStart;
+  });
+  if (overlap) {
+    setFormError(
+      `That overlaps an existing showtime in ${selectedHallName} (${formatDateTime(overlap.startTime)} – ${formatDateTime(overlap.endTime)}).`
+    );
+    return;
+  }
 
     setSubmitting(true);
     try {
@@ -220,21 +258,23 @@ const navigate = useNavigate();
         <label>
           Start time
           <input
-            type="datetime-local"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            required
-          />
+  type="datetime-local"
+  value={startTime}
+  min={toLocalDatetimeValue(new Date())}
+  onChange={(e) => setStartTime(e.target.value)}
+  required
+/>
         </label>
 
         <label>
           End time
           <input
-            type="datetime-local"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            required
-          />
+  type="datetime-local"
+  value={endTime}
+  min={startTime || toLocalDatetimeValue(new Date())}
+  onChange={(e) => setEndTime(e.target.value)}
+  required
+/>
         </label>
 
         {formError && <p className="error" role="alert">{formError}</p>}

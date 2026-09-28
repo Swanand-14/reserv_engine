@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef} from "react";
 import { useParams, useLocation, useNavigate, Link } from "react-router-dom";
 import type { BookingHoldResponse } from "../../api/booking";
 import { cancelHold } from "../../api/booking";
@@ -29,6 +29,7 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const state = (location.state ?? {}) as CheckoutState;
   const hold = state.hold;
+  
 
   const [remainingSeconds, setRemainingSeconds] = useState<number>(() =>
     hold ? Math.max(0, Math.floor((new Date(hold.expiresAt).getTime() - Date.now()) / 1000)) : 0
@@ -46,6 +47,12 @@ export function CheckoutPage() {
   }, [hold]);
 
   const expired = remainingSeconds <= 0;
+  const autoReleasedRef = useRef(false);
+   useEffect(() => {
+     if (!hold || !expired || autoReleasedRef.current) return;
+     autoReleasedRef.current = true;
+     cancelHold(hold.holdId).catch(() => {});
+   }, [hold, expired]);
 
   const backToSeats = useMemo(() => {
     if (!state.eventId || !state.showtimeId) return "/browse";
