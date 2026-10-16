@@ -7,7 +7,7 @@ import {
   type TicketTierResponse,
 } from "../../api/ticketTiers";
 import { getSeatMap, type SeatMapEntryResponse } from "../../api/seatMap";
-import { publishEvent } from "../../api/organizerEvents";
+
 import { groupByRow } from "../../utils/seatLabel";
 import { ApiError } from "../../api/client";
 
