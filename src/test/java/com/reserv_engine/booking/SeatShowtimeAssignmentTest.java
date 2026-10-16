@@ -11,7 +11,7 @@ class SeatShowtimeAssignmentTest extends AbstractIntegrationTest {
     private HttpHeaders authHeaders(String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(token);
+        headers.add(HttpHeaders.COOKIE, token);
         return headers;
     }
 

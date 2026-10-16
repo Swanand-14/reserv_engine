@@ -5,16 +5,15 @@ import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRe
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * Base class for every concurrency/integration test in this project.
@@ -41,16 +40,31 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * specifically, since we need genuine concurrent HTTP requests hitting a
  * real socket, not calls funneled through a single shared test transaction.
  */
-@Testcontainers
 @ExtendWith(org.springframework.test.context.junit.jupiter.SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(properties = "spring.docker.compose.enabled=false")
 @AutoConfigureTestRestTemplate
 public abstract class AbstractIntegrationTest {
 
-    @Container
-    @ServiceConnection
-    static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:9.4.0");
+    // Singleton container: started once per JVM and shared by every test class.
+    // Do NOT use @Testcontainers/@Container here: that stops the container after
+    // each test class, while Spring's context cache keeps reusing the old
+    // ApplicationContext whose DataSource still points at the dead container's
+    // port -> "Communications link failure" / "Connection refused" from the
+    // second test class onward. Testcontainers' Ryuk cleans the container up
+    // when the JVM exits.
+    static final MySQLContainer<?> mysql = new MySQLContainer<>("mysql:9.4.0");
+
+    static {
+        mysql.start();
+    }
+
+    @DynamicPropertySource
+    static void datasourceProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", mysql::getJdbcUrl);
+        registry.add("spring.datasource.username", mysql::getUsername);
+        registry.add("spring.datasource.password", mysql::getPassword);
+    }
 
     @LocalServerPort
     protected int port;
@@ -62,14 +76,14 @@ public abstract class AbstractIntegrationTest {
         return "http://localhost:" + port;
     }
     private String extractSessionCookie(ResponseEntity<String> response) {
-                String setCookie = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
-               if (setCookie == null) {
-                        throw new IllegalStateException("Login response had no Set-Cookie header");
-                    }
-              // Set-Cookie carries attributes (Path, HttpOnly, SameSite...) that must
-                      // NOT be replayed in a request's Cookie header — only "name=value".
-                               return setCookie.split(";", 2)[0];
-            }
+        String setCookie = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        if (setCookie == null) {
+            throw new IllegalStateException("Login response had no Set-Cookie header");
+        }
+        // Set-Cookie carries attributes (Path, HttpOnly, SameSite...) that must
+        // NOT be replayed in a request's Cookie header — only "name=value".
+        return setCookie.split(";", 2)[0];
+    }
 
     protected String signupAndLogin(String email, String password) {
         String signupBody = """
